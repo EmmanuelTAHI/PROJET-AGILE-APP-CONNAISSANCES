@@ -1,0 +1,144 @@
+{% extends "_layouts/app.html" %}
+
+{% block title %}Connaissances{% endblock %}
+
+{% block content %}
+  <div class="grid gap-6" x-data="{ view: 'cards' }">
+    <section class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <div class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+          <i data-lucide="book-open" class="h-3.5 w-3.5"></i>
+          Base de connaissances
+        </div>
+        <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Explorer</h1>
+        <p class="mt-1 text-sm text-slate-600">Recherche rapide, tags, filtres et contenu structuré.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-semibold transition" :class="view==='cards' ? 'bg-sky-600 text-white' : 'text-slate-700 hover:bg-slate-50'" @click="view='cards'">Cartes</button>
+          <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-semibold transition" :class="view==='table' ? 'bg-sky-600 text-white' : 'text-slate-700 hover:bg-slate-50'" @click="view='table'">Table</button>
+        </div>
+        <a class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:from-sky-600 hover:to-sky-700" href="{% url 'knowledge_create' %}">
+          <i data-lucide="plus-circle" class="h-4 w-4"></i>
+          Publier
+        </a>
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form class="grid gap-3 lg:grid-cols-12" method="get">
+        <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm lg:col-span-6 focus-within:ring-2 focus-within:ring-sky-500">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35" />
+            <circle cx="11" cy="11" r="7" />
+          </svg>
+          <input name="q" value="{{ q }}" type="text" class="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none" placeholder="Rechercher (titre, tags)…" />
+          {% if q %}
+            <a class="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50" href="{% url 'knowledge_list' %}">reset</a>
+          {% endif %}
+        </label>
+
+        <select class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 lg:col-span-2" name="kind">
+          <option value="">Type</option>
+          {% for k in kinds %}
+            <option value="{{ k.id }}" {% if kind == k.id|stringformat:"s" %}selected{% endif %}>{{ k.name }}</option>
+          {% endfor %}
+        </select>
+
+        <select class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 lg:col-span-2" name="department">
+          <option value="">Département</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if department == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+
+        <button class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 lg:col-span-2">Filtrer</button>
+      </form>
+
+      <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">Astuce</span>
+        Clique sur un contenu pour voir le détail, puis sur “Publier” pour en créer un nouveau.
+      </div>
+    </section>
+
+    <section :class="view==='cards' ? '' : 'hidden'" class="grid gap-4 lg:grid-cols-2">
+      {% for item in items %}
+        <a href="{% url 'knowledge_detail' item.id %}" class="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">{{ item.kind.name }}</span>
+                <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700">{{ item.department }}</span>
+                {% if item.status == "published" %}
+                  <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Publié</span>
+                {% elif item.status == "in_review" %}
+                  <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">En validation</span>
+                {% else %}
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">Brouillon</span>
+                {% endif %}
+              </div>
+              <div class="mt-3 text-lg font-bold truncate">{{ item.title }}</div>
+              <div class="mt-1 text-sm text-slate-600">{{ item.author }} · {{ item.read_time_min }} min</div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                {% for t in item.tags.all %}
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">#{{ t }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 group-hover:border-sky-200 group-hover:bg-sky-50 group-hover:text-sky-700">
+              <span class="transition group-hover:translate-x-0.5">→</span>
+            </div>
+          </div>
+        </a>
+      {% empty %}
+        <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm lg:col-span-2">
+          <div class="font-semibold text-slate-900">Aucun résultat</div>
+          <div class="mt-1 text-sm text-slate-600">Essaie un autre mot-clé ou enlève les filtres.</div>
+        </div>
+      {% endfor %}
+    </section>
+
+    <section :class="view==='table' ? '' : 'hidden'" class="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm sm:p-4">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <tr class="divide-x divide-slate-200">
+              <th class="py-3 pr-4">Titre</th>
+              <th class="px-4 py-3">Type</th>
+              <th class="px-4 py-3">Dépt.</th>
+              <th class="px-4 py-3">Statut</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% for item in items %}
+              <tr class="divide-x divide-slate-200 hover:bg-slate-50">
+                <td class="py-3 pr-4 font-semibold text-slate-900">
+                  {{ item.title }}
+                  <div class="mt-1 text-xs text-slate-500">{{ item.author }} · {{ item.read_time_min }} min</div>
+                </td>
+                <td class="px-4 py-3"><span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">{{ item.get_kind_display }}</span></td>
+                <td class="px-4 py-3"><span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700">{{ item.department }}</span></td>
+                <td class="px-4 py-3">
+                  {% if item.status == "published" %}
+                    <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Publié</span>
+                  {% elif item.status == "in_review" %}
+                    <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">En validation</span>
+                  {% else %}
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">Brouillon</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <a class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500" href="{% url 'knowledge_detail' item.id %}">Ouvrir</a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="py-6 text-slate-600">Aucun résultat.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+

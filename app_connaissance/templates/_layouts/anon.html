@@ -1,0 +1,10 @@
+{% extends "_layouts/base.html" %}
+
+{% block body %}
+  <main class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50/50">
+    <div class="min-h-screen">
+      {% include "_partials/toasts.html" %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+{% endblock %}

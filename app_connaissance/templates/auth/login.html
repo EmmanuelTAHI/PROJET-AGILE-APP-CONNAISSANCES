@@ -1,0 +1,106 @@
+{% extends "_layouts/anon.html" %}
+
+{% block title %}Connexion — Plateforme Savoirs{% endblock %}
+
+{% block content %}
+  <div class="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:flex-row lg:gap-16 lg:px-8">
+    <!-- Colonne gauche : branding -->
+    <section class="mb-10 text-center lg:mb-0 lg:max-w-md lg:text-left">
+      <div class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 p-4 shadow-xl shadow-sky-500/25">
+        <i data-lucide="brain" class="h-12 w-12 text-white"></i>
+      </div>
+      <h1 class="mt-6 text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
+        Capitalisez vos
+        <span class="bg-gradient-to-r from-sky-500 to-indigo-600 bg-clip-text text-transparent">savoirs</span>.
+      </h1>
+      <p class="mt-4 text-base leading-relaxed text-slate-600">
+        Plateforme de gestion des connaissances : capitalisation, validation et transmission des compétences en entreprise.
+      </p>
+      <div class="mt-8 flex flex-wrap justify-center gap-4 lg:justify-start">
+        <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700">
+          <i data-lucide="shield-check" class="h-4 w-4 text-emerald-500"></i>
+          Validation managériale
+        </div>
+        <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700">
+          <i data-lucide="graduation-cap" class="h-4 w-4 text-sky-500"></i>
+          Plans d'intégration
+        </div>
+      </div>
+    </section>
+
+    <!-- Colonne droite : formulaire -->
+    <section class="w-full max-w-md">
+      <div class="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-2xl shadow-slate-200/50 backdrop-blur sm:p-8">
+        <h2 class="text-2xl font-bold text-slate-900">Connexion</h2>
+        <p class="mt-1 text-sm text-slate-600">Identifiants ou mode démo.</p>
+
+        {% if messages %}
+          <div class="mt-4 space-y-2">
+            {% for message in messages %}
+              <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post" class="mt-6 space-y-5" action="{% url 'login' %}">
+          {% csrf_token %}
+          {% if request.GET.next %}
+            <input type="hidden" name="next" value="{{ request.GET.next }}" />
+          {% endif %}
+
+          <div>
+            <label class="block text-sm font-semibold text-slate-900">Identifiant</label>
+            <input type="text" name="username" autocomplete="username" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20" placeholder="Nom d'utilisateur" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-900">Mot de passe</label>
+            <input type="password" name="password" autocomplete="current-password" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20" placeholder="••••••••" />
+            <p class="mt-2 text-right">
+              <a href="{% url 'password_reset' %}" class="text-sm font-medium text-sky-600 hover:underline">Mot de passe oublié ?</a>
+            </p>
+          </div>
+
+          <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:from-sky-600 hover:to-sky-700">
+            <i data-lucide="log-in" class="h-4 w-4"></i>
+            Se connecter
+          </button>
+        </form>
+
+        <div class="mt-6 border-t border-slate-200 pt-6">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Mode démo (sans mot de passe)</p>
+          <p class="mt-2 text-sm text-slate-600">Choisis un rôle puis envoie le formulaire avec champs vides.</p>
+          <form method="post" class="mt-4" action="{% url 'login' %}" x-data="{ demoRole: 'employee' }">
+            {% csrf_token %}
+            <input type="hidden" name="username" value="" />
+            <input type="hidden" name="password" value="" />
+            <div class="grid grid-cols-2 gap-2">
+              <label class="cursor-pointer rounded-xl border p-3 text-center transition hover:bg-slate-50" :class="demoRole==='employee' ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50' : 'border-slate-200 bg-white'">
+                <input type="radio" name="role" value="employee" class="sr-only" x-model="demoRole" />
+                <span class="block text-sm font-semibold text-slate-900">Employé</span>
+                <span class="mt-0.5 block text-xs text-slate-500">Contribution</span>
+              </label>
+              <label class="cursor-pointer rounded-xl border p-3 text-center transition hover:bg-slate-50" :class="demoRole==='manager' ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50' : 'border-slate-200 bg-white'">
+                <input type="radio" name="role" value="manager" class="sr-only" x-model="demoRole" />
+                <span class="block text-sm font-semibold text-slate-900">Manager</span>
+                <span class="mt-0.5 block text-xs text-slate-500">Validation</span>
+              </label>
+              <label class="cursor-pointer rounded-xl border p-3 text-center transition hover:bg-slate-50" :class="demoRole==='admin' ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50' : 'border-slate-200 bg-white'">
+                <input type="radio" name="role" value="admin" class="sr-only" x-model="demoRole" />
+                <span class="block text-sm font-semibold text-slate-900">Admin</span>
+                <span class="mt-0.5 block text-xs text-slate-500">Organisation</span>
+              </label>
+              <label class="cursor-pointer rounded-xl border p-3 text-center transition hover:bg-slate-50" :class="demoRole==='new_employee' ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50' : 'border-slate-200 bg-white'">
+                <input type="radio" name="role" value="new_employee" class="sr-only" x-model="demoRole" />
+                <span class="block text-sm font-semibold text-slate-900">Nouveau</span>
+                <span class="mt-0.5 block text-xs text-slate-500">Intégration</span>
+              </label>
+            </div>
+            <button type="submit" class="mt-3 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+              Entrer en démo
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}

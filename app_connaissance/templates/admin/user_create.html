@@ -1,0 +1,257 @@
+{% extends "_layouts/app.html" %}
+
+{% block title %}Créer un utilisateur{% endblock %}
+
+{% block content %}
+  <div class="mx-auto max-w-2xl">
+    <header class="mb-6">
+      <a href="{% url 'users_admin' %}" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-sky-600">
+        <i data-lucide="arrow-left" class="h-4 w-4"></i>
+        Retour aux utilisateurs
+      </a>
+      <h1 class="mt-2 text-2xl font-bold text-slate-900">Nouvel utilisateur</h1>
+      <p class="mt-1 text-sm text-slate-600">Créez un compte. Les identifiants seront envoyés par email.</p>
+    </header>
+
+    <form method="post" enctype="multipart/form-data" x-data="userCreateForm()" x-init="$nextTick(() => { var d = document.getElementById('id_department'); if (d) filterPostes(d.value); })">
+      {% csrf_token %}
+
+      {# Section 1 : Identité #}
+      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <i data-lucide="user" class="h-4 w-4 text-sky-500"></i>
+            Identité
+          </h2>
+        </div>
+        <div class="p-4">
+          <div class="flex gap-4">
+            <div class="flex-shrink-0">
+              <label class="block text-xs font-medium text-slate-600">Photo</label>
+              <div class="mt-1.5 flex items-center gap-3">
+                <div id="photo-preview" class="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
+                  <i data-lucide="user" class="h-8 w-8"></i>
+                </div>
+                <label class="cursor-pointer">
+                  <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">Parcourir</span>
+                  <input type="file" name="photo" id="id_photo" accept="image/*" class="hidden" />
+                </label>
+              </div>
+            </div>
+            <div class="min-w-0 flex-1 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="id_first_name" class="block text-xs font-medium text-slate-600">Prénom *</label>
+                  <input type="text" name="first_name" id="id_first_name" value="{{ form.first_name.value|default:'' }}" maxlength="150" required
+                    x-model="first_name" @input="suggestUsername()"
+                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="Jean" />
+                  {% if form.first_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.first_name.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                  <label for="id_last_name" class="block text-xs font-medium text-slate-600">Nom *</label>
+                  <input type="text" name="last_name" id="id_last_name" value="{{ form.last_name.value|default:'' }}" maxlength="150" required
+                    x-model="last_name" @input="suggestUsername()"
+                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="Dupont" />
+                  {% if form.last_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.last_name.errors.0 }}</p>{% endif %}
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1 min-w-0">
+                  <label for="id_username" class="block text-xs font-medium text-slate-600">Identifiant de connexion *</label>
+                  <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" maxlength="150" required
+                    x-model="username"
+                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="jean.dupont" />
+                  {% if form.username.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.username.errors.0 }}</p>{% endif %}
+                </div>
+                <div class="flex-shrink-0 self-end">
+                  <button type="button" @click="suggestUsername()"
+                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                    Générer
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="id_email" class="block text-xs font-medium text-slate-600">Email *</label>
+                  <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" required
+                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="jean.dupont@exemple.com" />
+                  {% if form.email.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.email.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                  <label for="id_display_name" class="block text-xs font-medium text-slate-600">Nom affiché</label>
+                  <input type="text" name="display_name" id="id_display_name" value="{{ form.display_name.value|default:'' }}" maxlength="120"
+                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="Optionnel" />
+                  {% if form.display_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.display_name.errors.0 }}</p>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {# Section 2 : Organisation #}
+      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <i data-lucide="building-2" class="h-4 w-4 text-sky-500"></i>
+            Poste & organisation
+          </h2>
+        </div>
+        <div class="p-4">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="id_department" class="block text-xs font-medium text-slate-600">Département *</label>
+              <div class="mt-1" id="department-wrapper">
+                <select name="department" id="id_department" required
+                  @change="filterPostes($event.target.value)"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                  <option value="">— Sélectionner —</option>
+                  {% for d in form.fields.department.queryset %}
+                    <option value="{{ d.pk }}" {% if form.department.value == d.pk %}selected{% endif %}>{{ d.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% if form.department.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.department.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+              <label for="id_poste" class="block text-xs font-medium text-slate-600">Poste *</label>
+              <div class="mt-1" id="poste-wrapper">
+                <select name="poste" id="id_poste" required
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                  <option value="">— Sélectionner —</option>
+                  {% for p in postes %}
+                    <option value="{{ p.pk }}" data-department="{{ p.department_id }}" {% if form.poste.value == p.pk %}selected{% endif %}>{{ p.intitule }} ({{ p.department.name }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% if form.poste.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.poste.errors.0 }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {# Section 3 : Rôle & contrat #}
+      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <i data-lucide="shield" class="h-4 w-4 text-sky-500"></i>
+            Rôle & contrat
+          </h2>
+        </div>
+        <div class="p-4 space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-2">Rôle *</label>
+            <div class="grid grid-cols-2 gap-2">
+              {% for value, label in form.fields.role.choices %}
+                {% if value %}
+                <label class="flex cursor-pointer items-center gap-2 rounded-lg border-2 p-3 text-sm transition"
+                  :class="role === '{{ value }}' ? 'border-sky-500 bg-sky-50' : 'border-slate-200 hover:border-slate-300'">
+                  <input type="radio" name="role" value="{{ value }}" {% if form.role.value == value %}checked{% endif %}
+                    x-model="role" class="sr-only" required />
+                  <span class="font-medium text-slate-800">{{ label }}</span>
+                </label>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-2">Type de contrat *</label>
+            <div class="flex flex-wrap gap-2">
+              {% for value, label in form.fields.type_contrat.choices %}
+                {% if value %}
+                <label class="inline-flex cursor-pointer items-center rounded-lg border-2 px-3 py-2 text-sm font-medium transition"
+                  :class="type_contrat === '{{ value }}' ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-slate-200 hover:border-slate-300'">
+                  <input type="radio" name="type_contrat" value="{{ value }}" {% if form.type_contrat.value == value %}checked{% endif %}
+                    x-model="type_contrat" class="sr-only" required />
+                  {{ label }}
+                </label>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <label for="id_date_embauche" class="block text-xs font-medium text-slate-600">Date d'embauche</label>
+            <input type="date" name="date_embauche" id="id_date_embauche" value="{{ form.date_embauche.value|default:'' }}"
+              class="mt-1 w-full max-w-[180px] rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+          </div>
+        </div>
+      </section>
+
+      {# Info credentials #}
+      <div class="mb-6 rounded-lg border border-sky-200 bg-sky-50/80 px-4 py-3">
+        <p class="text-xs text-sky-800">
+          <strong>Mot de passe automatique :</strong> un mot de passe sécurisé sera généré et envoyé par email. L'utilisateur devra le modifier à la première connexion.
+        </p>
+      </div>
+
+      {# Actions #}
+      <div class="flex gap-3">
+        <button type="submit"
+          class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1">
+          <i data-lucide="user-plus" class="h-4 w-4"></i>
+          Créer l'utilisateur
+        </button>
+        <a href="{% url 'users_admin' %}"
+          class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          Annuler
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    window.userCreateForm = function() {
+      return {
+        username: '{{ form.username.value|default:""|escapejs }}',
+        first_name: '{{ form.first_name.value|default:""|escapejs }}',
+        last_name: '{{ form.last_name.value|default:""|escapejs }}',
+        role: '{{ form.role.value|default:"employee"|escapejs }}',
+        type_contrat: '{{ form.type_contrat.value|default:"cdi"|escapejs }}',
+        suggestUsername: function() {
+          var f = (document.getElementById('id_first_name')?.value || '').trim();
+          var n = (document.getElementById('id_last_name')?.value || '').trim();
+          if (!f && !n) return;
+          var raw = (f + '.' + n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9.-]/g, '.').replace(/\.+/g, '.').replace(/^\.|\.$/g, '');
+          if (raw) {
+            this.username = raw;
+            var inp = document.getElementById('id_username');
+            if (inp) inp.value = raw;
+          }
+        },
+        filterPostes: function(deptId) {
+          var sel = document.getElementById('id_poste');
+          if (!sel) return;
+          var opts = sel.querySelectorAll('option[data-department]');
+          opts.forEach(function(o) { o.hidden = deptId ? o.dataset.department !== deptId : false; });
+          var empty = sel.querySelector('option[value=""]');
+          if (empty) empty.hidden = false;
+          sel.value = deptId ? (sel.querySelector('option[data-department="' + deptId + '"]:not([hidden])')?.value || '') : '';
+        }
+      };
+    };
+  </script>
+  <script>
+    document.getElementById('id_photo').addEventListener('change', function(e) {
+      var f = e.target.files[0];
+      var el = document.getElementById('photo-preview');
+      if (f && f.type.indexOf('image') !== -1) {
+        var r = new FileReader();
+        r.onload = function() { el.innerHTML = '<img src="' + r.result + '" alt="" class="h-full w-full object-cover" />'; };
+        r.readAsDataURL(f);
+      } else {
+        el.innerHTML = '<i data-lucide="user" class="h-8 w-8 text-slate-400"></i>';
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+    if (window.InlineCreateSelect) {
+      InlineCreateSelect.init({ selectId: 'id_department', model: 'department', canAdd: true, apiUrl: '{% url "api_reference_create" %}', modalTitle: 'Nouveau département', modalHint: 'Nom du département.', labelField: 'Nom', placeholder: 'IT, RH...', successMessage: 'Département ajouté.' });
+      InlineCreateSelect.init({ selectId: 'id_poste', model: 'poste', canAdd: true, apiUrl: '{% url "api_reference_create" %}', parentSelectId: 'id_department', requiresParent: true, modalTitle: 'Nouveau poste', modalHint: 'Sélectionnez d\'abord un département.', labelField: 'Intitulé', placeholder: 'Développeur...', successMessage: 'Poste ajouté.', parentRequiredMessage: 'Sélectionnez un département.' });
+    }
+  </script>
+{% endblock %}

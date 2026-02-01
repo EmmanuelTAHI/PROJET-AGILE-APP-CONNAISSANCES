@@ -1,0 +1,25 @@
+{% if messages %}
+  <div id="toast-root" class="fixed right-4 top-4 z-50 grid gap-3">
+    {% for message in messages %}
+      <div
+        data-toast="5200"
+        class="w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg transition-all duration-300"
+      >
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 h-2.5 w-2.5 rounded-full
+            {% if 'success' in message.tags %} bg-emerald-500
+            {% elif 'error' in message.tags %} bg-rose-500
+            {% elif 'warning' in message.tags %} bg-amber-500
+            {% else %} bg-sky-500
+            {% endif %}"
+          ></div>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ message.tags|default:"info" }}</div>
+            <div class="mt-1 text-sm text-slate-800">{{ message }}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+

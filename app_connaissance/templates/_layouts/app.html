@@ -1,0 +1,30 @@
+{% extends "_layouts/base.html" %}
+
+{% block body %}
+  <div class="min-h-screen" x-data="{ sidebarOpen: false }">
+    <div class="lg:flex">
+      <!-- Sidebar desktop -->
+      <aside class="hidden lg:block lg:w-72 lg:flex-none lg:border-r lg:border-slate-200/80 lg:bg-white/90 lg:shadow-sm">
+        {% include "_partials/sidebar.html" %}
+      </aside>
+
+      <div class="min-w-0 flex-1">
+        {% include "_partials/topbar.html" %}
+        {% include "_partials/toasts.html" %}
+
+        <main class="px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <!-- Sidebar mobile overlay -->
+    <div class="lg:hidden" :class="sidebarOpen ? '' : 'hidden'">
+      <div class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" @click="sidebarOpen=false"></div>
+      <aside class="fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white shadow-2xl">
+        {% include "_partials/sidebar.html" %}
+      </aside>
+    </div>
+  </div>
+  {% include "_partials/command_palette.html" %}
+{% endblock %}

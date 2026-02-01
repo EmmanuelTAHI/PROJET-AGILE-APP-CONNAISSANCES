@@ -1,0 +1,43 @@
+{% load static %}
+{% load django_browser_reload %}
+{% django_browser_reload_script %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Plateforme de Connaissances{% endblock %}</title>
+  <meta name="description" content="Capitalisation et transmission des savoirs en entreprise." />
+  <!-- Google Fonts - Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+  <style>
+    :root {
+      --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+      --primary: 14 165 233;
+      --primary-hover: 2 132 199;
+      --accent: 99 102 241;
+      --success: 5 150 105;
+      --warning: 245 158 11;
+      --muted: 100 116 139;
+    }
+    body { font-family: var(--font-sans); }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+  <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-slate-50/80 text-slate-900 antialiased">
+  {% block body %}{% endblock %}
+  <script>
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
+  <script src="{% static 'js/app.js' %}"></script>
+  <script src="{% static 'js/inline-create-select.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

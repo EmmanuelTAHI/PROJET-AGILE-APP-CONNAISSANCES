@@ -1,0 +1,81 @@
+<div class="flex min-h-screen flex-col">
+  <div class="px-5 py-6">
+    <a href="{% url 'dashboard' %}" class="flex items-center gap-3 rounded-xl transition hover:opacity-90">
+      <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
+        <i data-lucide="brain" class="h-6 w-6"></i>
+      </div>
+      <div>
+        <div class="text-base font-bold tracking-tight text-slate-900">Savoirs</div>
+        <div class="text-xs font-medium text-slate-500">Gestion des connaissances</div>
+      </div>
+    </a>
+  </div>
+
+  <nav class="flex-1 px-3">
+    <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Principal</p>
+    <a href="{% url 'dashboard' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+      {% if request.resolver_match.url_name == 'dashboard' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+      <i data-lucide="layout-dashboard" class="h-[18px] w-[18px] shrink-0"></i>
+      <span>Tableau de bord</span>
+    </a>
+    <a href="{% url 'knowledge_list' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+      {% if request.resolver_match.url_name == 'knowledge_list' or request.resolver_match.url_name == 'knowledge_detail' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+      <i data-lucide="book-open" class="h-[18px] w-[18px] shrink-0"></i>
+      <span>Connaissances</span>
+    </a>
+    <a href="{% url 'knowledge_create' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+      {% if request.resolver_match.url_name == 'knowledge_create' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+      <i data-lucide="plus-circle" class="h-[18px] w-[18px] shrink-0"></i>
+      <span>Publier</span>
+    </a>
+
+    <p class="mt-6 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Intégration</p>
+    <a href="{% url 'onboarding_home' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+      {% if request.resolver_match.url_name == 'onboarding_home' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+      <i data-lucide="graduation-cap" class="h-[18px] w-[18px] shrink-0"></i>
+      <span>Plan d'intégration</span>
+    </a>
+    <a href="{% url 'trainings' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+      {% if request.resolver_match.url_name == 'trainings' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+      <i data-lucide="video" class="h-[18px] w-[18px] shrink-0"></i>
+      <span>Formations</span>
+    </a>
+
+    {% if frontend.role == "manager" %}
+      <p class="mt-6 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Qualité</p>
+      <a href="{% url 'validation_queue' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+        {% if request.resolver_match.url_name == 'validation_queue' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+        <i data-lucide="shield-check" class="h-[18px] w-[18px] shrink-0"></i>
+        <span>Validation</span>
+      </a>
+    {% endif %}
+
+    {% if frontend.role == "admin" %}
+      <p class="mt-6 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Administration</p>
+      <a href="{% url 'departments' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+        {% if request.resolver_match.url_name == 'departments' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+        <i data-lucide="building-2" class="h-[18px] w-[18px] shrink-0"></i>
+        <span>Départements</span>
+      </a>
+      <a href="{% url 'users_admin' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+        {% if request.resolver_match.url_name == 'users_admin' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
+        <i data-lucide="users" class="h-[18px] w-[18px] shrink-0"></i>
+        <span>Utilisateurs</span>
+      </a>
+    {% endif %}
+  </nav>
+
+  <div class="border-t border-slate-200/80 px-5 py-4">
+    <div class="flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="truncate text-sm font-semibold text-slate-900">{{ frontend.display_name }}</p>
+        <p class="text-xs font-medium text-slate-500">Rôle : <span class="text-slate-700">{{ frontend.role|default:"—" }}</span></p>
+      </div>
+      <a href="{% url 'profile' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+        <i data-lucide="user" class="h-4 w-4"></i>
+        Profil
+      </a>
+    </div>
+    <p class="mt-2 text-[11px] text-slate-400">Ctrl+K pour la recherche rapide</p>
+  </div>
+</div>
