@@ -76,6 +76,20 @@ REFERENCE_MODELS: dict[str, dict[str, Any]] = {
 }
 
 
+@require_http_methods(["GET"])
+def postes_by_department_api(request: HttpRequest, department_id: int) -> JsonResponse:
+    """
+    Retourne la liste des postes pour un département donné (JSON).
+    Utilisé pour peupler le champ poste en fonction du département choisi.
+    """
+    postes = list(
+        Poste.objects.filter(department_id=department_id)
+        .order_by("intitule")
+        .values("id", "intitule")
+    )
+    return JsonResponse({"postes": postes})
+
+
 @require_http_methods(["POST"])
 def reference_create_api(request: HttpRequest) -> JsonResponse:
     """

@@ -14,11 +14,17 @@ from .models import (
     Entreprise,
     KnowledgeKind,
     KnowledgeItem,
+    Module,
+    ModuleStep,
     OnboardingStep,
     PlanIntegration,
     Poste,
+    Quiz,
+    QuizChoice,
+    QuizQuestion,
     Tag,
     UserProfile,
+    UserQuizAttempt,
 )
 
 
@@ -184,10 +190,74 @@ class DepartmentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("manager", "entreprise")
 
 
+class ModuleInline(admin.TabularInline):
+    model = Module
+    extra = 0
+    ordering = ("ordre",)
+
+
 @admin.register(PlanIntegration)
 class PlanIntegrationAdmin(admin.ModelAdmin):
     list_display = ("titre", "duree_estimee_jours")
     search_fields = ("titre", "description")
+    inlines = (ModuleInline,)
+
+
+class ModuleStepInline(admin.TabularInline):
+    model = ModuleStep
+    extra = 1
+    ordering = ("ordre",)
+
+
+class QuizInline(admin.StackedInline):
+    model = Quiz
+    extra = 0
+    max_num = 1
+    fk_name = "module"
+
+
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ("titre", "plan", "ordre", "duree_jours")
+    list_filter = ("plan",)
+    search_fields = ("titre",)
+    inlines = (ModuleStepInline, QuizInline,)
+
+
+class QuizQuestionInline(admin.TabularInline):
+    model = QuizQuestion
+    extra = 0
+    ordering = ("ordre",)
+
+
+@admin.register(Quiz)
+class QuizAdmin(admin.ModelAdmin):
+    list_display = ("titre", "module", "seuil_reussite_pct")
+    list_filter = ("module__plan",)
+    search_fields = ("titre",)
+    inlines = (QuizQuestionInline,)
+
+
+class QuizChoiceInline(admin.TabularInline):
+    model = QuizChoice
+    extra = 1
+    ordering = ("question", "id")
+
+
+@admin.register(QuizQuestion)
+class QuizQuestionAdmin(admin.ModelAdmin):
+    list_display = ("enonce", "quiz", "ordre")
+    list_filter = ("quiz",)
+    search_fields = ("enonce",)
+    inlines = (QuizChoiceInline,)
+
+
+@admin.register(UserQuizAttempt)
+class UserQuizAttemptAdmin(admin.ModelAdmin):
+    list_display = ("user", "quiz", "score_pct", "passed", "completed_at")
+    list_filter = ("passed", "quiz")
+    search_fields = ("user__username",)
+    readonly_fields = ("completed_at",)
 
 
 @admin.register(Poste)

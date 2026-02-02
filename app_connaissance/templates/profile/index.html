@@ -3,58 +3,241 @@
 {% block title %}Profil{% endblock %}
 
 {% block content %}
-  <div class="grid gap-6">
-    <section class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <span class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-          <i data-lucide="user" class="h-3.5 w-3.5"></i>
-          Compte
-        </span>
-        <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Profil</h1>
-        <p class="mt-1 text-sm text-slate-600">Informations et rôle actif.</p>
-      </div>
-      <a class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50" href="{% url 'dashboard' %}">
-        Retour
+  <div class="mx-auto max-w-3xl space-y-10">
+    {# ----- En-tête ----- #}
+    <header class="space-y-1">
+      <a href="{% url 'dashboard' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-sky-600">
+        <i data-lucide="arrow-left" class="h-4 w-4"></i>
+        Retour au tableau de bord
       </a>
-    </section>
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">Mon profil</h1>
+      <p class="text-slate-600">Consultez et modifiez vos informations personnelles. Le poste, le département et le contrat sont gérés par l'administrateur.</p>
+    </header>
 
-    <section class="grid gap-6 lg:grid-cols-3">
-      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-        <div class="text-sm font-semibold text-slate-900">Informations</div>
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Nom affiché</div>
-            <div class="mt-2 text-lg font-bold text-slate-900">{{ frontend.display_name }}</div>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Rôle</div>
-            <div class="mt-2 text-lg font-bold text-slate-900">{{ frontend.role }}</div>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-            <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Département</div>
-            <div class="mt-2 text-lg font-bold text-slate-900">
-              {% if profile and profile.department %}
-                {{ profile.department }}
-              {% else %}
-                —
-              {% endif %}
+    {% if form %}
+      <form method="post" enctype="multipart/form-data" class="space-y-10">
+        {% csrf_token %}
+
+        {# ----- Section 1 : Identité (éditable) ----- #}
+        <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <header class="border-b border-slate-200/80 bg-slate-50/70 px-6 py-5">
+            <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-800">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                <i data-lucide="user" class="h-5 w-5"></i>
+              </span>
+              Identité
+            </h2>
+            <p class="mt-1.5 text-sm text-slate-500">Modifiez votre prénom, nom, email et photo. Ces informations sont utilisées dans l'application.</p>
+          </header>
+          <div class="p-6 space-y-8">
+            {# Photo + Prénom / Nom #}
+            <div class="flex flex-col gap-8 sm:flex-row sm:gap-10">
+              <div class="flex flex-shrink-0 flex-col">
+                <label class="mb-2 block text-sm font-medium text-slate-700">Photo</label>
+                <div class="flex items-center gap-4">
+                  <div id="profile-photo-preview" class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300">
+                    {% if profile.photo %}
+                      <img src="{{ profile.photo.url }}" alt="" class="h-full w-full object-cover" />
+                    {% else %}
+                      <i data-lucide="user" class="h-12 w-12"></i>
+                    {% endif %}
+                  </div>
+                  <label class="cursor-pointer">
+                    <span class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
+                      <i data-lucide="upload" class="h-4 w-4"></i>
+                      Parcourir
+                    </span>
+                    <input type="file" name="photo" id="id_photo" accept="image/*" class="hidden" />
+                  </label>
+                </div>
+              </div>
+              <div class="min-w-0 flex-1 space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <label for="id_first_name" class="block text-sm font-medium text-slate-700">Prénom <span class="text-rose-500">*</span></label>
+                    <input type="text" name="first_name" id="id_first_name" value="{{ form.first_name.value|default:'' }}" maxlength="150" required
+                      class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      placeholder="Jean" />
+                    {% if form.first_name.errors %}<p class="text-xs text-rose-600">{{ form.first_name.errors.0 }}</p>{% endif %}
+                  </div>
+                  <div class="space-y-2">
+                    <label for="id_last_name" class="block text-sm font-medium text-slate-700">Nom <span class="text-rose-500">*</span></label>
+                    <input type="text" name="last_name" id="id_last_name" value="{{ form.last_name.value|default:'' }}" maxlength="150" required
+                      class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      placeholder="Dupont" />
+                    {% if form.last_name.errors %}<p class="text-xs text-rose-600">{{ form.last_name.errors.0 }}</p>{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {# Identifiant (lecture seule) #}
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-slate-500">Identifiant de connexion</label>
+              <div class="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
+                {{ request.user.username }}
+              </div>
+              <p class="text-xs text-slate-500">L'identifiant de connexion ne peut pas être modifié depuis cette page.</p>
+            </div>
+
+            {# Email + Nom affiché #}
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2">
+                <label for="id_email" class="block text-sm font-medium text-slate-700">Email <span class="text-rose-500">*</span></label>
+                <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" required
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="jean.dupont@exemple.com" />
+                {% if form.email.errors %}<p class="text-xs text-rose-600">{{ form.email.errors.0 }}</p>{% endif %}
+              </div>
+              <div class="space-y-2">
+                <label for="id_display_name" class="block text-sm font-medium text-slate-700">Nom affiché</label>
+                <input type="text" name="display_name" id="id_display_name" value="{{ form.display_name.value|default:'' }}" maxlength="120"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="Optionnel" />
+                {% if form.display_name.help_text %}<p class="text-xs text-slate-500">{{ form.display_name.help_text }}</p>{% endif %}
+                {% if form.display_name.errors %}<p class="text-xs text-rose-600">{{ form.display_name.errors.0 }}</p>{% endif %}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <aside class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="text-sm font-semibold text-slate-900">Rôles & droits</div>
-        <div class="mt-4 space-y-2 text-sm text-slate-700">
-          <p>Ton rôle est déterminé par ton compte et peut être modifié uniquement par un administrateur.</p>
-          <ul class="list-disc list-inside text-slate-600">
-            <li><span class="font-semibold">Employé</span> : contribution & consultation.</li>
-            <li><span class="font-semibold">Manager</span> : validation des contenus.</li>
-            <li><span class="font-semibold">Administrateur</span> : gestion des comptes et des départements.</li>
-          </ul>
+        {# ----- Section 2 : Poste & Département (lecture seule, grisée) ----- #}
+        <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/80 shadow-sm">
+          <header class="border-b border-slate-200/80 bg-slate-100/80 px-6 py-5">
+            <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-600">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-slate-500">
+                <i data-lucide="building-2" class="h-5 w-5"></i>
+              </span>
+              Poste & département
+            </h2>
+            <p class="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
+              <i data-lucide="lock" class="h-4 w-4 flex-shrink-0"></i>
+              Ces informations sont gérées par l'administrateur et ne peuvent pas être modifiées ici.
+            </p>
+          </header>
+          <div class="p-6">
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="rounded-xl border border-slate-200 bg-white/60 px-4 py-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Département</div>
+                <div class="mt-1.5 text-sm font-medium text-slate-700">
+                  {% if profile.department %}{{ profile.department.name }}{% else %}—{% endif %}
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white/60 px-4 py-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Poste</div>
+                <div class="mt-1.5 text-sm font-medium text-slate-700">
+                  {% if profile.poste %}{{ profile.poste.intitule }}{% else %}—{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# ----- Section 3 : Rôle & contrat (lecture seule, grisée) ----- #}
+        <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/80 shadow-sm">
+          <header class="border-b border-slate-200/80 bg-slate-100/80 px-6 py-5">
+            <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-600">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-slate-500">
+                <i data-lucide="shield" class="h-5 w-5"></i>
+              </span>
+              Rôle & contrat
+            </h2>
+            <p class="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
+              <i data-lucide="lock" class="h-4 w-4 flex-shrink-0"></i>
+              Le rôle et le type de contrat sont définis par l'administrateur.
+            </p>
+          </header>
+          <div class="p-6">
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="rounded-xl border border-slate-200 bg-white/60 px-4 py-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Rôle</div>
+                <div class="mt-1.5 text-sm font-medium text-slate-700">
+                  {% if role %}{% for value, label in roles.items %}{% if value == role %}{{ label.label }}{% endif %}{% endfor %}{% else %}—{% endif %}
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white/60 px-4 py-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Type de contrat</div>
+                <div class="mt-1.5 text-sm font-medium text-slate-700">
+                  {% if profile.type_contrat %}{{ profile.get_type_contrat_display }}{% else %}—{% endif %}
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white/60 px-4 py-3 sm:col-span-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Date d'embauche</div>
+                <div class="mt-1.5 text-sm font-medium text-slate-700">
+                  {% if profile.date_embauche %}{{ profile.date_embauche|date:"d/m/Y" }}{% else %}—{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# ----- Actions ----- #}
+        <footer class="flex flex-wrap items-center gap-4 border-t border-slate-200/80 pt-8">
+          <button type="submit"
+            class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
+            <i data-lucide="save" class="h-4 w-4"></i>
+            Enregistrer les modifications
+          </button>
+          <a href="{% url 'dashboard' %}"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300">
+            Annuler
+          </a>
+        </footer>
+      </form>
+
+      <script>
+        document.getElementById('id_photo').addEventListener('change', function(e) {
+          var f = e.target.files[0];
+          var el = document.getElementById('profile-photo-preview');
+          if (f && f.type.indexOf('image') !== -1) {
+            var r = new FileReader();
+            r.onload = function() { el.innerHTML = '<img src="' + r.result + '" alt="" class="h-full w-full object-cover" />'; };
+            r.readAsDataURL(f);
+          } else {
+            el.innerHTML = '{% if profile.photo %}<img src="{{ profile.photo.url }}" alt="" class="h-full w-full object-cover" />{% else %}<i data-lucide="user" class="h-12 w-12 text-slate-400"></i>{% endif %}';
+          }
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+      </script>
+    {% else %}
+      {# Pas de formulaire : utilisateur sans profil ou mode démo — affichage lecture seule #}
+      <section class="grid gap-6 lg:grid-cols-3">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div class="text-sm font-semibold text-slate-900">Informations</div>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Nom affiché</div>
+              <div class="mt-2 text-lg font-bold text-slate-900">{{ frontend.display_name }}</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Rôle</div>
+              <div class="mt-2 text-lg font-bold text-slate-900">
+                {% if role %}{% for value, label in roles.items %}{% if value == role %}{{ label.label }}{% endif %}{% endfor %}{% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Département</div>
+              <div class="mt-2 text-lg font-bold text-slate-900">
+                {% if profile and profile.department %}{{ profile.department }}{% else %}—{% endif %}
+              </div>
+            </div>
+          </div>
+          {% if not profile or not request.user.is_authenticated %}
+            <p class="mt-4 text-sm text-slate-500">La modification du profil est disponible uniquement pour les comptes connectés avec un profil associé.</p>
+          {% endif %}
         </div>
-      </aside>
-    </section>
+        <aside class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="text-sm font-semibold text-slate-900">Rôles & droits</div>
+          <div class="mt-4 space-y-2 text-sm text-slate-700">
+            <p>Le rôle est déterminé par l'administrateur.</p>
+            <ul class="list-disc list-inside text-slate-600">
+              <li><span class="font-semibold">Employé</span> : contribution & consultation.</li>
+              <li><span class="font-semibold">Manager</span> : validation des contenus.</li>
+              <li><span class="font-semibold">Administrateur</span> : gestion des comptes et des départements.</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+    {% endif %}
   </div>
 {% endblock %}
-

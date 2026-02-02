@@ -145,11 +145,13 @@ PASSWORD_CHANGE_REDIRECT_URL = "/dashboard/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email Configuration (SMTP)
+# Pour déboguer : affiche les emails dans la console (pas d'envoi réel)
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "emmanueltahi14@gmail.com"  # Remplace par ton email
-EMAIL_HOST_PASSWORD = "srzc woei bgdy vens"
+EMAIL_HOST_USER = "emmanueltahi18@gmail.com"  # Remplace par ton email
+EMAIL_HOST_PASSWORD = "ssfz mygl fand lhax"
 DEFAULT_FROM_EMAIL = "emmanueltahi14@gmail.com"
-CONTACT_EMAIL = "emmanueltahi14@gmail.com"  # E-mail où recevoir les messages
+CONTACT_EMAIL = "emmanueltahi18@gmail.com"  # E-mail où recevoir les messages

@@ -5,6 +5,7 @@ from . import api_views, views
 
 urlpatterns = [
     path("api/reference/create/", api_views.reference_create_api, name="api_reference_create"),
+    path("api/postes-by-department/<int:department_id>/", api_views.postes_by_department_api, name="api_postes_by_department"),
     path('', views.index_redirect, name='index'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout_view'),
@@ -22,10 +23,7 @@ urlpatterns = [
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(
         template_name='auth/password_reset_done.html',
     ), name='password_reset_done'),
-    path('password-reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
-        template_name='auth/password_reset_confirm.html',
-        success_url='/password-reset/complete/',
-    ), name='password_reset_confirm'),
+    path('password-reset/<uidb64>/<token>/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('password-reset/complete/', auth_views.PasswordResetCompleteView.as_view(
         template_name='auth/password_reset_complete.html',
     ), name='password_reset_complete'),
@@ -34,6 +32,8 @@ urlpatterns = [
     path('connaissances/', views.knowledge_list, name='knowledge_list'),
     path('connaissances/nouvelle/', views.knowledge_create, name='knowledge_create'),
     path('connaissances/<int:knowledge_id>/', views.knowledge_detail, name='knowledge_detail'),
+    path('connaissances/<int:knowledge_id>/modifier/', views.knowledge_edit, name='knowledge_edit'),
+    path('connaissances/<int:knowledge_id>/dupliquer/', views.knowledge_duplicate, name='knowledge_duplicate'),
 
     # Validation (manager)
     path('validation/', views.validation_queue, name='validation_queue'),
@@ -52,6 +52,9 @@ urlpatterns = [
 
     # Intégration / formation
     path('integration/', views.onboarding_home, name='onboarding_home'),
+    path('integration/mon-plan/', views.plan_integration_personnel, name='plan_integration_personnel'),
+    path('integration/step/<int:step_id>/toggle/', views.module_step_toggle, name='module_step_toggle'),
+    path('integration/quiz/<int:quiz_id>/', views.quiz_take, name='quiz_take'),
     path('formations/', views.trainings, name='trainings'),
 
     # Profil

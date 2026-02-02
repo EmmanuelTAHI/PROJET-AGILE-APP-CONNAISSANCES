@@ -17,6 +17,11 @@
       <kbd class="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">Ctrl K</kbd>
     </button>
 
+    <a href="{% url 'logout_view' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700" title="Se déconnecter">
+      <i data-lucide="log-out" class="h-4 w-4"></i>
+      <span class="hidden sm:inline">Déconnexion</span>
+    </a>
+
     <div class="relative" x-data="{ open: false }">
       <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:from-sky-600 hover:to-sky-700" @click="open=!open" :aria-expanded="open">
         <span class="max-w-[140px] truncate">{{ frontend.display_name }}</span>

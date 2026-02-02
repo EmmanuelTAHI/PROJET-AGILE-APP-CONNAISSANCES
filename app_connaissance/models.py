@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.template.defaultfilters import slugify
@@ -104,6 +105,104 @@ class Module(models.Model):
         return self.titre
 
 
+class ModuleStep(models.Model):
+    """Sous-étape d'un module (case à cocher pour l'utilisateur)."""
+    module = models.ForeignKey(
+        Module, on_delete=models.CASCADE, related_name="steps"
+    )
+    titre = models.CharField(max_length=200)
+    ordre = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["module", "ordre"]
+        unique_together = [["module", "ordre"]]
+
+    def __str__(self) -> str:
+        return f"{self.module.titre} — {self.titre}"
+
+
+class UserModuleStepCompletion(models.Model):
+    """Suivi : sous-étape cochée par un utilisateur."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="module_step_completions"
+    )
+    module_step = models.ForeignKey(
+        ModuleStep, on_delete=models.CASCADE, related_name="completions"
+    )
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [["user", "module_step"]]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.module_step}"
+
+
+class Quiz(models.Model):
+    """Quiz associé à un module du plan d'intégration."""
+    module = models.OneToOneField(
+        Module, on_delete=models.CASCADE, related_name="quiz", null=True, blank=True
+    )
+    titre = models.CharField(max_length=140, default="Quiz")
+    seuil_reussite_pct = models.PositiveSmallIntegerField(
+        default=70,
+        help_text="Pourcentage minimum pour valider le quiz (ex: 70).",
+    )
+
+    class Meta:
+        ordering = ["module__ordre"]
+        verbose_name_plural = "Quiz"
+
+    def __str__(self) -> str:
+        return self.titre or (self.module.titre if self.module else "Quiz")
+
+
+class QuizQuestion(models.Model):
+    """Question d'un quiz (choix multiples)."""
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    enonce = models.CharField(max_length=500)
+    ordre = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["quiz", "ordre"]
+
+    def __str__(self) -> str:
+        return self.enonce[:60] + ("…" if len(self.enonce) > 60 else "")
+
+
+class QuizChoice(models.Model):
+    """Réponse possible à une question (une seule correcte par question)."""
+    question = models.ForeignKey(
+        QuizQuestion, on_delete=models.CASCADE, related_name="choices"
+    )
+    texte = models.CharField(max_length=300)
+    is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["question", "id"]
+
+    def __str__(self) -> str:
+        return self.texte[:50] + ("…" if len(self.texte) > 50 else "")
+
+
+class UserQuizAttempt(models.Model):
+    """Tentative d'un utilisateur à un quiz (score et statut)."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quiz_attempts"
+    )
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
+    score_pct = models.PositiveSmallIntegerField(default=0)
+    passed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-completed_at"]
+        unique_together = [["user", "quiz"]]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.quiz} ({self.score_pct}%)"
+
+
 class KnowledgeKind(models.Model):
     name = models.CharField(max_length=40, unique=True)
     slug = models.SlugField(max_length=40, unique=True, blank=True)
@@ -129,6 +228,12 @@ class KnowledgeItem(models.Model):
         ARCHIVED = "archived", "Archivé"
 
     title = models.CharField(max_length=180)
+    description = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Résumé court de la connaissance (une phrase).",
+    )
     kind = models.ForeignKey(KnowledgeKind, on_delete=models.PROTECT, related_name="knowledge_items")
     department = models.ForeignKey(
         Department,
@@ -139,6 +244,13 @@ class KnowledgeItem(models.Model):
         blank=True,
     )
     author = models.CharField(max_length=120, blank=True, default="")
+    author_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="authored_knowledge_items",
+    )
     content = models.TextField()
     video_url = models.URLField(blank=True, default="")
     attachment = models.FileField(upload_to="knowledge_attachments/", blank=True, null=True)
@@ -157,6 +269,22 @@ class KnowledgeItem(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def get_current_version(self):
+        """Retourne la version marquée comme actuelle, ou la plus récente."""
+        current = self.versions.filter(est_actuelle=True).first()
+        if current:
+            return current
+        return self.versions.order_by("-date_creation").first()
+
+    def get_display_author(self):
+        """Auteur affiché : profil/user ou champ author."""
+        if self.author_user_id:
+            profile = getattr(self.author_user, "profile", None)
+            if profile:
+                return profile.display_name
+            return self.author_user.get_full_name() or self.author_user.get_username()
+        return self.author or "—"
 
 
 class KnowledgeVersion(models.Model):

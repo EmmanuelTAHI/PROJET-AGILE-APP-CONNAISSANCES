@@ -69,6 +69,47 @@ class DepartmentForm(forms.ModelForm):
         }
 
 
+class ProfileEditForm(forms.Form):
+    """Édition du profil par l'utilisateur (identité et photo uniquement ; poste/département/rôle en lecture seule)."""
+    first_name = forms.CharField(max_length=150, label="Prénom", required=True)
+    last_name = forms.CharField(max_length=150, label="Nom", required=True)
+    email = forms.EmailField(label="Email", required=True)
+    display_name = forms.CharField(
+        max_length=120,
+        label="Nom affiché",
+        required=False,
+        help_text="Nom utilisé dans l'application (laisser vide pour utiliser Prénom + Nom).",
+    )
+    photo = forms.ImageField(label="Photo (avatar)", required=False)
+
+    def __init__(self, *args, user_instance: User | None = None, profile_instance: UserProfile | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._user_instance = user_instance
+        self._profile_instance = profile_instance
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        if not email:
+            return email
+        qs = User.objects.filter(email__iexact=email)
+        if self._user_instance:
+            qs = qs.exclude(pk=self._user_instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("Cette adresse email est déjà utilisée par un autre compte.")
+        return email
+
+    def clean_display_name(self):
+        name = (self.cleaned_data.get("display_name") or "").strip()
+        if not name:
+            return None
+        qs = UserProfile.objects.filter(display_name__iexact=name)
+        if self._profile_instance:
+            qs = qs.exclude(pk=self._profile_instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("Ce nom affiché est déjà utilisé par un autre compte.")
+        return name
+
+
 class OnboardingStepForm(forms.ModelForm):
     """Création / édition d'une étape d'intégration."""
     class Meta:

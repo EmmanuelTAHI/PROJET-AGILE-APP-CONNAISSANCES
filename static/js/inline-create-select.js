@@ -132,6 +132,12 @@
             const opt = document.createElement("option");
             opt.value = data.id;
             opt.textContent = data.label || data.name;
+            if (config.parentSelectId) {
+              const parentSelect = document.getElementById(config.parentSelectId);
+              if (parentSelect && parentSelect.value) {
+                opt.setAttribute("data-department", parentSelect.value);
+              }
+            }
             selectEl.appendChild(opt);
             selectEl.value = data.id;
             if (typeof lucide !== "undefined") lucide.createIcons();
@@ -197,7 +203,7 @@
           placeholder: options.placeholder,
           successMessage: options.successMessage,
           parentRequiredMessage: options.parentRequiredMessage,
-        });
+        }, options.onSuccess || null);
       });
 
       wrapper.appendChild(btn);

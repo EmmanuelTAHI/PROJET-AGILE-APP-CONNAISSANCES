@@ -4,7 +4,7 @@ from typing import Any
 
 from django.http import HttpRequest
 
-from .models import UserProfile
+from .models import KnowledgeItem, UserProfile
 
 
 def frontend_user(request: HttpRequest) -> dict[str, Any]:
@@ -13,6 +13,7 @@ def frontend_user(request: HttpRequest) -> dict[str, Any]:
 
     role: str | None = None
     display_name = "Invité"
+    pending_validation_count = 0
 
     if is_authenticated:
         profile: UserProfile | None = getattr(user, "profile", None)
@@ -23,11 +24,17 @@ def frontend_user(request: HttpRequest) -> dict[str, Any]:
         role = request.session.get("frontend_demo_role")
         display_name = request.session.get("frontend_demo_name") or (role or "Invité")
 
+    if role == "manager" or role == "admin":
+        pending_validation_count = KnowledgeItem.objects.filter(
+            status=KnowledgeItem.Status.IN_REVIEW
+        ).count()
+
     return {
         "frontend": {
             "is_authenticated": is_authenticated,
             "role": role,
             "display_name": display_name,
+            "pending_validation_count": pending_validation_count,
         }
     }
 

@@ -3,169 +3,193 @@
 {% block title %}Créer un utilisateur{% endblock %}
 
 {% block content %}
-  <div class="mx-auto max-w-2xl">
-    <header class="mb-6">
-      <a href="{% url 'users_admin' %}" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-sky-600">
+  <div class="mx-auto max-w-3xl space-y-10">
+    {# ----- En-tête de page ----- #}
+    <header class="space-y-1">
+      <a href="{% url 'users_admin' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-sky-600">
         <i data-lucide="arrow-left" class="h-4 w-4"></i>
         Retour aux utilisateurs
       </a>
-      <h1 class="mt-2 text-2xl font-bold text-slate-900">Nouvel utilisateur</h1>
-      <p class="mt-1 text-sm text-slate-600">Créez un compte. Les identifiants seront envoyés par email.</p>
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">Nouvel utilisateur</h1>
+      <p class="text-slate-600">Créez un compte. Les identifiants seront envoyés par email.</p>
     </header>
 
-    <form method="post" enctype="multipart/form-data" x-data="userCreateForm()" x-init="$nextTick(() => { var d = document.getElementById('id_department'); if (d) filterPostes(d.value); })">
+    <form method="post" enctype="multipart/form-data" x-data="userCreateForm()" x-init="$nextTick(() => { var d = document.getElementById('id_department'); if (d) filterPostes(d.value); })" class="space-y-10">
       {% csrf_token %}
 
-      {# Section 1 : Identité #}
-      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <i data-lucide="user" class="h-4 w-4 text-sky-500"></i>
+      {# ----- Section 1 : Identité ----- #}
+      <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <header class="border-b border-slate-200/80 bg-slate-50/70 px-6 py-5">
+          <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-800">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+              <i data-lucide="user" class="h-5 w-5"></i>
+            </span>
             Identité
           </h2>
-        </div>
-        <div class="p-4">
-          <div class="flex gap-4">
-            <div class="flex-shrink-0">
-              <label class="block text-xs font-medium text-slate-600">Photo</label>
-              <div class="mt-1.5 flex items-center gap-3">
-                <div id="photo-preview" class="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
-                  <i data-lucide="user" class="h-8 w-8"></i>
+          <p class="mt-1.5 text-sm text-slate-500">Tous les départements de l'entreprise sont listés ; après avoir choisi un département, le champ Poste affiche les postes de ce département.</p>
+        </header>
+        <div class="p-6 space-y-8">
+          {# Photo + Nom / Prénom #}
+          <div class="flex flex-col gap-8 sm:flex-row sm:gap-10">
+            <div class="flex flex-shrink-0 flex-col">
+              <label class="mb-2 block text-sm font-medium text-slate-700">Photo</label>
+              <div class="flex items-center gap-4">
+                <div id="photo-preview" class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300">
+                  <i data-lucide="user" class="h-12 w-12"></i>
                 </div>
                 <label class="cursor-pointer">
-                  <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">Parcourir</span>
+                  <span class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
+                    <i data-lucide="upload" class="h-4 w-4"></i>
+                    Parcourir
+                  </span>
                   <input type="file" name="photo" id="id_photo" accept="image/*" class="hidden" />
                 </label>
               </div>
             </div>
-            <div class="min-w-0 flex-1 space-y-3">
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label for="id_first_name" class="block text-xs font-medium text-slate-600">Prénom *</label>
+            <div class="min-w-0 flex-1 space-y-4">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-2">
+                  <label for="id_first_name" class="block text-sm font-medium text-slate-700">Prénom <span class="text-rose-500">*</span></label>
                   <input type="text" name="first_name" id="id_first_name" value="{{ form.first_name.value|default:'' }}" maxlength="150" required
                     x-model="first_name" @input="suggestUsername()"
-                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     placeholder="Jean" />
-                  {% if form.first_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.first_name.errors.0 }}</p>{% endif %}
+                  {% if form.first_name.errors %}<p class="text-xs text-rose-600">{{ form.first_name.errors.0 }}</p>{% endif %}
                 </div>
-                <div>
-                  <label for="id_last_name" class="block text-xs font-medium text-slate-600">Nom *</label>
+                <div class="space-y-2">
+                  <label for="id_last_name" class="block text-sm font-medium text-slate-700">Nom <span class="text-rose-500">*</span></label>
                   <input type="text" name="last_name" id="id_last_name" value="{{ form.last_name.value|default:'' }}" maxlength="150" required
                     x-model="last_name" @input="suggestUsername()"
-                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     placeholder="Dupont" />
-                  {% if form.last_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.last_name.errors.0 }}</p>{% endif %}
+                  {% if form.last_name.errors %}<p class="text-xs text-rose-600">{{ form.last_name.errors.0 }}</p>{% endif %}
                 </div>
               </div>
-              <div class="flex gap-2">
-                <div class="flex-1 min-w-0">
-                  <label for="id_username" class="block text-xs font-medium text-slate-600">Identifiant de connexion *</label>
-                  <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" maxlength="150" required
-                    x-model="username"
-                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    placeholder="jean.dupont" />
-                  {% if form.username.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.username.errors.0 }}</p>{% endif %}
-                </div>
-                <div class="flex-shrink-0 self-end">
-                  <button type="button" @click="suggestUsername()"
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
-                    Générer
-                  </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label for="id_email" class="block text-xs font-medium text-slate-600">Email *</label>
-                  <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" required
-                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    placeholder="jean.dupont@exemple.com" />
-                  {% if form.email.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.email.errors.0 }}</p>{% endif %}
-                </div>
-                <div>
-                  <label for="id_display_name" class="block text-xs font-medium text-slate-600">Nom affiché</label>
-                  <input type="text" name="display_name" id="id_display_name" value="{{ form.display_name.value|default:'' }}" maxlength="120"
-                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    placeholder="Optionnel" />
-                  {% if form.display_name.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.display_name.errors.0 }}</p>{% endif %}
-                </div>
-              </div>
+            </div>
+          </div>
+
+          {# Identifiant + bouton Générer #}
+          <div class="space-y-2">
+            <label for="id_username" class="block text-sm font-medium text-slate-700">Identifiant de connexion <span class="text-rose-500">*</span></label>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" maxlength="150" required
+                x-model="username"
+                class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                placeholder="jean.dupont" />
+              <button type="button" @click="suggestUsername()"
+                class="flex-shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                Générer
+              </button>
+            </div>
+            {% if form.username.errors %}<p class="text-xs text-rose-600">{{ form.username.errors.0 }}</p>{% endif %}
+          </div>
+
+          {# Email + Nom affiché #}
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <label for="id_email" class="block text-sm font-medium text-slate-700">Email <span class="text-rose-500">*</span></label>
+              <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" required
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                placeholder="jean.dupont@exemple.com" />
+              {% if form.email.errors %}<p class="text-xs text-rose-600">{{ form.email.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="space-y-2">
+              <label for="id_display_name" class="block text-sm font-medium text-slate-700">Nom affiché</label>
+              <input type="text" name="display_name" id="id_display_name" value="{{ form.display_name.value|default:'' }}" maxlength="120"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                placeholder="Optionnel" />
+              {% if form.display_name.errors %}<p class="text-xs text-rose-600">{{ form.display_name.errors.0 }}</p>{% endif %}
             </div>
           </div>
         </div>
       </section>
 
-      {# Section 2 : Organisation #}
-      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <i data-lucide="building-2" class="h-4 w-4 text-sky-500"></i>
-            Poste & organisation
+      {# ----- Section 2 : Poste & Département ----- #}
+      <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <header class="border-b border-slate-200/80 bg-slate-50/70 px-6 py-5">
+          <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-800">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+              <i data-lucide="building-2" class="h-5 w-5"></i>
+            </span>
+            Poste & département
           </h2>
-        </div>
-        <div class="p-4">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label for="id_department" class="block text-xs font-medium text-slate-600">Département *</label>
-              <div class="mt-1" id="department-wrapper">
+          <p class="mt-1.5 text-sm text-slate-500">Sélectionnez un département : la liste des postes se met à jour pour n'afficher que les postes de ce département.</p>
+        </header>
+        <div class="p-6 space-y-6">
+          <div class="grid gap-6 sm:grid-cols-2">
+            <div class="space-y-2">
+              <label for="id_department" class="block text-sm font-medium text-slate-700">Département <span class="text-rose-500">*</span></label>
+              <div id="department-wrapper">
                 <select name="department" id="id_department" required
                   @change="filterPostes($event.target.value)"
-                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
-                  <option value="">— Sélectionner —</option>
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                  <option value="">— Sélectionner un département —</option>
                   {% for d in form.fields.department.queryset %}
                     <option value="{{ d.pk }}" {% if form.department.value == d.pk %}selected{% endif %}>{{ d.name }}</option>
                   {% endfor %}
                 </select>
               </div>
-              {% if form.department.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.department.errors.0 }}</p>{% endif %}
+              <p class="flex items-center gap-1.5 text-xs text-slate-500">
+                <i data-lucide="plus-circle" class="h-3.5 w-3.5 flex-shrink-0"></i>
+                Pas dans la liste ? Cliquez sur <strong>+</strong> à droite du champ pour ajouter un département.
+              </p>
+              {% if form.department.errors %}<p class="text-xs text-rose-600">{{ form.department.errors.0 }}</p>{% endif %}
             </div>
-            <div>
-              <label for="id_poste" class="block text-xs font-medium text-slate-600">Poste *</label>
-              <div class="mt-1" id="poste-wrapper">
+            <div class="space-y-2">
+              <label for="id_poste" class="block text-sm font-medium text-slate-700">Poste <span class="text-rose-500">*</span></label>
+              <div id="poste-wrapper">
                 <select name="poste" id="id_poste" required
-                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
-                  <option value="">— Sélectionner —</option>
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                  <option value="">— Sélectionner un poste —</option>
                   {% for p in postes %}
                     <option value="{{ p.pk }}" data-department="{{ p.department_id }}" {% if form.poste.value == p.pk %}selected{% endif %}>{{ p.intitule }} ({{ p.department.name }})</option>
                   {% endfor %}
                 </select>
               </div>
-              {% if form.poste.errors %}<p class="mt-0.5 text-xs text-rose-600">{{ form.poste.errors.0 }}</p>{% endif %}
+              <p class="flex items-center gap-1.5 text-xs text-slate-500">
+                <i data-lucide="plus-circle" class="h-3.5 w-3.5 flex-shrink-0"></i>
+                Sélectionnez d'abord un département, puis <strong>+</strong> pour ajouter un poste.
+              </p>
+              {% if form.poste.errors %}<p class="text-xs text-rose-600">{{ form.poste.errors.0 }}</p>{% endif %}
             </div>
           </div>
         </div>
       </section>
 
-      {# Section 3 : Rôle & contrat #}
-      <section class="mb-6 rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <i data-lucide="shield" class="h-4 w-4 text-sky-500"></i>
+      {# ----- Section 3 : Rôle & contrat ----- #}
+      <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <header class="border-b border-slate-200/80 bg-slate-50/70 px-6 py-5">
+          <h2 class="flex items-center gap-3 text-lg font-semibold text-slate-800">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+              <i data-lucide="shield" class="h-5 w-5"></i>
+            </span>
             Rôle & contrat
           </h2>
-        </div>
-        <div class="p-4 space-y-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-2">Rôle *</label>
-            <div class="grid grid-cols-2 gap-2">
+          <p class="mt-1.5 text-sm text-slate-500">Droits d'accès et type de contrat.</p>
+        </header>
+        <div class="p-6 space-y-8">
+          <div class="space-y-4">
+            <label class="block text-sm font-medium text-slate-700">Rôle <span class="text-rose-500">*</span></label>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {% for value, label in form.fields.role.choices %}
                 {% if value %}
-                <label class="flex cursor-pointer items-center gap-2 rounded-lg border-2 p-3 text-sm transition"
-                  :class="role === '{{ value }}' ? 'border-sky-500 bg-sky-50' : 'border-slate-200 hover:border-slate-300'">
+                <label class="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 p-4 text-sm font-medium transition"
+                  :class="role === '{{ value }}' ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'">
                   <input type="radio" name="role" value="{{ value }}" {% if form.role.value == value %}checked{% endif %}
                     x-model="role" class="sr-only" required />
-                  <span class="font-medium text-slate-800">{{ label }}</span>
+                  {{ label }}
                 </label>
                 {% endif %}
               {% endfor %}
             </div>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-2">Type de contrat *</label>
-            <div class="flex flex-wrap gap-2">
+          <div class="space-y-4">
+            <label class="block text-sm font-medium text-slate-700">Type de contrat <span class="text-rose-500">*</span></label>
+            <div class="flex flex-wrap gap-3">
               {% for value, label in form.fields.type_contrat.choices %}
                 {% if value %}
-                <label class="inline-flex cursor-pointer items-center rounded-lg border-2 px-3 py-2 text-sm font-medium transition"
-                  :class="type_contrat === '{{ value }}' ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-slate-200 hover:border-slate-300'">
+                <label class="inline-flex cursor-pointer items-center rounded-xl border-2 px-4 py-3 text-sm font-medium transition"
+                  :class="type_contrat === '{{ value }}' ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'">
                   <input type="radio" name="type_contrat" value="{{ value }}" {% if form.type_contrat.value == value %}checked{% endif %}
                     x-model="type_contrat" class="sr-only" required />
                   {{ label }}
@@ -174,33 +198,37 @@
               {% endfor %}
             </div>
           </div>
-          <div>
-            <label for="id_date_embauche" class="block text-xs font-medium text-slate-600">Date d'embauche</label>
+          <div class="space-y-2">
+            <label for="id_date_embauche" class="block text-sm font-medium text-slate-700">Date d'embauche</label>
             <input type="date" name="date_embauche" id="id_date_embauche" value="{{ form.date_embauche.value|default:'' }}"
-              class="mt-1 w-full max-w-[180px] rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              class="w-full max-w-[220px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
           </div>
         </div>
       </section>
 
-      {# Info credentials #}
-      <div class="mb-6 rounded-lg border border-sky-200 bg-sky-50/80 px-4 py-3">
-        <p class="text-xs text-sky-800">
-          <strong>Mot de passe automatique :</strong> un mot de passe sécurisé sera généré et envoyé par email. L'utilisateur devra le modifier à la première connexion.
-        </p>
+      {# ----- Info mot de passe ----- #}
+      <div class="flex gap-4 rounded-2xl border border-sky-200/80 bg-sky-50/60 px-6 py-5">
+        <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+          <i data-lucide="key-round" class="h-5 w-5"></i>
+        </span>
+        <div class="min-w-0 space-y-0.5">
+          <p class="text-sm font-semibold text-sky-900">Mot de passe automatique</p>
+          <p class="text-sm text-sky-700/90">Un mot de passe sécurisé sera généré et envoyé par email. L'utilisateur devra le modifier à la première connexion.</p>
+        </div>
       </div>
 
-      {# Actions #}
-      <div class="flex gap-3">
+      {# ----- Actions ----- #}
+      <footer class="flex flex-wrap items-center gap-4 border-t border-slate-200/80 pt-8">
         <button type="submit"
-          class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1">
+          class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2">
           <i data-lucide="user-plus" class="h-4 w-4"></i>
           Créer l'utilisateur
         </button>
         <a href="{% url 'users_admin' %}"
-          class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300">
           Annuler
         </a>
-      </div>
+      </footer>
     </form>
   </div>
 
@@ -245,13 +273,52 @@
         r.onload = function() { el.innerHTML = '<img src="' + r.result + '" alt="" class="h-full w-full object-cover" />'; };
         r.readAsDataURL(f);
       } else {
-        el.innerHTML = '<i data-lucide="user" class="h-8 w-8 text-slate-400"></i>';
+        el.innerHTML = '<i data-lucide="user" class="h-10 w-10 text-slate-400"></i>';
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
-    if (window.InlineCreateSelect) {
-      InlineCreateSelect.init({ selectId: 'id_department', model: 'department', canAdd: true, apiUrl: '{% url "api_reference_create" %}', modalTitle: 'Nouveau département', modalHint: 'Nom du département.', labelField: 'Nom', placeholder: 'IT, RH...', successMessage: 'Département ajouté.' });
-      InlineCreateSelect.init({ selectId: 'id_poste', model: 'poste', canAdd: true, apiUrl: '{% url "api_reference_create" %}', parentSelectId: 'id_department', requiresParent: true, modalTitle: 'Nouveau poste', modalHint: 'Sélectionnez d\'abord un département.', labelField: 'Intitulé', placeholder: 'Développeur...', successMessage: 'Poste ajouté.', parentRequiredMessage: 'Sélectionnez un département.' });
-    }
+  </script>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function initDynamicSelects() {
+      if (typeof window.InlineCreateSelect === 'undefined') return;
+      InlineCreateSelect.init({
+        selectId: 'id_department',
+        model: 'department',
+        canAdd: true,
+        apiUrl: '{% url "api_reference_create" %}',
+        modalTitle: 'Nouveau département',
+        modalHint: 'Saisissez le nom du département (ex : IT, RH, Marketing).',
+        labelField: 'Nom',
+        placeholder: 'IT, RH, Marketing...',
+        successMessage: 'Département ajouté et sélectionné.'
+      });
+      InlineCreateSelect.init({
+        selectId: 'id_poste',
+        model: 'poste',
+        canAdd: true,
+        apiUrl: '{% url "api_reference_create" %}',
+        parentSelectId: 'id_department',
+        requiresParent: true,
+        modalTitle: 'Nouveau poste',
+        modalHint: 'Un département doit être sélectionné. Saisissez l\'intitulé du poste (ex : Développeur, Chargé RH).',
+        labelField: 'Intitulé du poste',
+        placeholder: 'Développeur, Chargé RH...',
+        successMessage: 'Poste ajouté et sélectionné.',
+        parentRequiredMessage: 'Veuillez d\'abord sélectionner un département.',
+        onSuccess: function () {
+          var d = document.getElementById('id_department');
+          if (!d) return;
+          var sel = document.getElementById('id_poste');
+          if (!sel) return;
+          var deptId = d.value;
+          sel.querySelectorAll('option[data-department]').forEach(function (o) { o.hidden = deptId ? o.dataset.department !== deptId : false; });
+          var empty = sel.querySelector('option[value=""]'); if (empty) empty.hidden = false;
+        }
+      });
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    })();
   </script>
 {% endblock %}

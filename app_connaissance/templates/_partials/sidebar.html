@@ -41,12 +41,15 @@
       <span>Formations</span>
     </a>
 
-    {% if frontend.role == "manager" %}
+    {% if frontend.role == "manager" or frontend.role == "admin" %}
       <p class="mt-6 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Qualité</p>
       <a href="{% url 'validation_queue' %}" class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
         {% if request.resolver_match.url_name == 'validation_queue' %} bg-sky-50 text-sky-700 ring-1 ring-sky-500/20 {% else %} text-slate-600 hover:bg-slate-100 hover:text-slate-900 {% endif %}">
         <i data-lucide="shield-check" class="h-[18px] w-[18px] shrink-0"></i>
         <span>Validation</span>
+        {% if frontend.pending_validation_count %}
+          <span class="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white">{{ frontend.pending_validation_count }}</span>
+        {% endif %}
       </a>
     {% endif %}
 
