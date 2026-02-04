@@ -139,9 +139,12 @@ class UserModuleStepCompletion(models.Model):
 
 
 class Quiz(models.Model):
-    """Quiz associé à un module du plan d'intégration."""
+    """Quiz associé à un module du plan d'intégration ou à une connaissance."""
     module = models.OneToOneField(
         Module, on_delete=models.CASCADE, related_name="quiz", null=True, blank=True
+    )
+    knowledge_item = models.OneToOneField(
+        "KnowledgeItem", on_delete=models.CASCADE, related_name="quiz", null=True, blank=True
     )
     titre = models.CharField(max_length=140, default="Quiz")
     seuil_reussite_pct = models.PositiveSmallIntegerField(
