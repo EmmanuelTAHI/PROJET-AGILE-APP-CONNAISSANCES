@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Plan d'Intégration - {{ plan.titre }}</title>
+</head>
+<body>
+    <div class="header-info">
+        <h1>Plan d'Intégration</h1>
+        <p><strong>Employé :</strong> {{ user.get_full_name|default:user.username }}</p>
+        <p><strong>Plan :</strong> {{ plan.titre }}</p>
+        <p><strong>Département :</strong> {{ user.profile.department.name }}</p>
+        <p><strong>Poste :</strong> {{ user.profile.poste.intitule }}</p>
+        <p><strong>Date d'export :</strong> {{ export_date|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <h2>Progression Globale</h2>
+    <div class="progress-bar">
+        <div class="progress-fill" data-percentage="{{ progress.pourcentage }}"></div>
+    </div>
+    <p><strong>{{ progress.pourcentage }}%</strong> complété</p>
+    <p>{{ progress.modules|length }} module{{ progress.modules|length|pluralize }} au total</p>
+
+    <div class="page-break"></div>
+
+    <h2>Détail des Modules</h2>
+    
+    {% for item in progress.modules %}
+    <div class="module-card">
+        <h3>Module {{ forloop.counter }} : {{ item.module.titre }}</h3>
+        
+        <p><strong>Durée :</strong> 
+            {% if item.module.duree_jours %}
+                {{ item.module.duree_jours }} jour{{ item.module.duree_jours|pluralize }}
+            {% else %}
+                Non spécifiée
+            {% endif %}
+        </p>
+        
+        <p><strong>Statut :</strong> 
+            {% if item.passed %}
+                <span style="color: #10b981; font-weight: bold;">✓ Complété</span>
+            {% else %}
+                <span style="color: #f59e0b;">⚡ En cours</span>
+            {% endif %}
+        </p>
+        
+        {% if item.steps %}
+        <h4>Étapes du module</h4>
+        {% for step in item.steps %}
+        <div class="step-item {% if step.id in item.completed_step_ids %}completed{% else %}pending{% endif %}">
+            <strong>{{ step.titre }}</strong>
+            {% if step.id in item.completed_step_ids %}
+                <span style="color: #10b981;"> (Terminé)</span>
+            {% else %}
+                <span style="color: #6b7280;"> (À faire)</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <p><strong>Progression du module :</strong> 
+            {{ item.steps_completed|length }} / {{ item.steps|length }} étapes complétées
+        </p>
+        {% endif %}
+        
+        {% if item.has_quiz %}
+        <div class="quiz-info">
+            <h4>Quiz du module</h4>
+            <p><strong>Quiz :</strong> {{ item.quiz.titre }}</p>
+            <p><strong>Seuil de réussite :</strong> {{ item.quiz.seuil_reussite_pct }}%</p>
+            
+            {% if item.quiz %}
+                {% set quiz_attempts = user.quizattempt_set.filter(quiz=item.quiz) %}
+                {% if quiz_attempts %}
+                    {% set last_attempt = quiz_attempts.last %}
+                    <p><strong>Dernière tentative :</strong> {{ last_attempt.score_pct }}%</p>
+                    {% if last_attempt.passed %}
+                        <span style="color: #10b981;">✓ Quiz réussi</span>
+                    {% else %}
+                        <span style="color: #ef4444;">✗ Quiz à repasser</span>
+                    {% endif %}
+                {% else %}
+                    <span style="color: #6b7280;">○ Quiz non passé</span>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if item.knowledge_items %}
+        <h4>Ressources associées</h4>
+        <ul>
+            {% for knowledge in item.knowledge_items %}
+            <li>{{ knowledge.item.title }} ({{ knowledge.item.kind.name }})</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="page-break"></div>
+
+    <h2>Résumé du Plan</h2>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <thead>
+            <tr style="background: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left;">Module</th>
+                <th style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">Étapes</th>
+                <th style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">Quiz</th>
+                <th style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in progress.modules %}
+            <tr>
+                <td style="border: 1px solid #d1d5db; padding: 10px;">{{ item.module.titre }}</td>
+                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">
+                    {{ item.steps_completed|length }} / {{ item.steps|length }}
+                </td>
+                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">
+                    {% if item.has_quiz %}
+                        {% if item.passed %}
+                            <span style="color: #10b981;">✓</span>
+                        {% else %}
+                            <span style="color: #f59e0b;">⚡</span>
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">
+                    {% if item.passed %}
+                        <span style="color: #10b981; font-weight: bold;">Complété</span>
+                    {% else %}
+                        <span style="color: #f59e0b;">En cours</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Objectifs Restants</h2>
+    {% if progress.pourcentage < 100 %}
+    <ul>
+        {% for item in progress.modules %}
+            {% if not item.passed %}
+            <li>Compléter le module "{{ item.module.titre }}"</li>
+                {% if item.steps %}
+                    {% for step in item.steps %}
+                        {% if step.id not in item.completed_step_ids %}
+                        <li style="margin-left: 20px;">- Terminer l'étape : {{ step.titre }}</li>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if item.has_quiz %}
+                    {% set quiz_attempts = user.quizattempt_set.filter(quiz=item.quiz) %}
+                    {% if not quiz_attempts or not quiz_attempts.last.passed %}
+                    <li style="margin-left: 20px;">- Réussir le quiz : {{ item.quiz.titre }}</li>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: #10b981; font-weight: bold; text-align: center; font-size: 16pt;">
+        🎉 Félicitations ! Vous avez terminé votre plan d'intégration !
+    </p>
+    {% endif %}
+
+    <div class="footer-info">
+        <p><strong>Informations :</strong></p>
+        <p>Date de génération : {{ export_date|date:"d/m/Y H:i" }}</p>
+        <p>Utilisateur : {{ user.username }}</p>
+        <p>Plan : {{ plan.titre }} ({{ plan.duree_semaines }} semaines)</p>
+        <p>Ce document est une exportation de votre progression actuelle.</p>
+        <p>Pour la progression la plus récente, consultez votre espace en ligne.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Page non trouvée{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.562M15 6.836A7.957 7.957 0 0112 6c-2.34 0-4.29 1.009-5.824 2.562M9 12h6"></path>
+      </svg>
+    </div>
+    
+    <h1 class="text-2xl font-bold text-slate-900 mb-4">Page non trouvée</h1>
+    
+    <p class="text-slate-600 mb-6">
+      La page que vous recherchez n'existe pas ou a été déplacée.
+    </p>
+    
+    <div class="space-y-3">
+      <a href="{% url 'dashboard' %}" class="block w-full bg-slate-900 text-white rounded-lg px-4 py-3 font-medium hover:bg-slate-800 transition">
+        Retour au tableau de bord
+      </a>
+      
+      <a href="{% url 'onboarding_home' %}" class="block w-full bg-slate-100 text-slate-700 rounded-lg px-4 py-3 font-medium hover:bg-slate-200 transition">
+        Accueil intégration
+      </a>
+    </div>
+    
+    <p class="text-sm text-slate-400 mt-6">
+      Vérifiez l'URL ou utilisez le menu pour naviguer.
+    </p>
+  </div>
+</div>
+{% endblock %}

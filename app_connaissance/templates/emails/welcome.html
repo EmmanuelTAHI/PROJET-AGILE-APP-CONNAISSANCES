@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue dans votre plan d'intégration</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background: #5a6fd8;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="icon">🎉</div>
+        <h1>Bienvenue {{ user.get_full_name|default:user.username }} !</h1>
+        <p>Nous sommes ravis de vous accueillir dans notre équipe</p>
+    </div>
+    
+    <div class="content">
+        <h2>Votre plan d'intégration vous attend</h2>
+        
+        <p>Félicitations pour votre arrivée ! Nous avons préparé un plan d'intégration personnalisé pour vous aider à vous intégrer rapidement et efficacement dans votre nouveau poste.</p>
+        
+        <h3>📋 Ce que vous trouverez dans votre plan :</h3>
+        <ul>
+            <li><strong>Modules adaptés</strong> à votre poste et département</li>
+            <li><strong>Quiz interactifs</strong> pour valider vos connaissances</li>
+            <li><strong>Ressources détaillées</strong> pour vous accompagner</li>
+            <li><strong>Suivi de progression</strong> en temps réel</li>
+        </ul>
+        
+        <h3>🚀 Pour commencer :</h3>
+        <ol>
+            <li>Connectez-vous à votre compte</li>
+            <li>Accédez à votre plan d'intégration</li>
+            <li>Commencez par le premier module</li>
+            <li>Suivez votre progression étape par étape</li>
+        </ol>
+        
+        <div style="text-align: center;">
+            <a href="{{ plan_url }}" class="button">Accéder à mon plan d'intégration</a>
+        </div>
+        
+        <h3>💡 Conseils pour réussir :</h3>
+        <ul>
+            <li>Prenez le temps de bien lire chaque module</li>
+            <li>N'hésitez pas à poser des questions</li>
+            <li>Célébrez chaque étape accomplie</li>
+            <li>Contactez votre manager si besoin d'aide</li>
+        </ul>
+        
+        <p>Nous sommes là pour vous accompagner dans cette nouvelle aventure. N'hésitez pas à nous solliciter !</p>
+        
+        <p>Bienvenue dans l'équipe !</p>
+        
+        <p><strong>L'équipe d'intégration</strong></p>
+    </div>
+    
+    <div class="footer">
+        <p>Cet email a été envoyé automatiquement par le système d'intégration.</p>
+        <p>Si vous avez des questions, contactez-nous à integration@entreprise.com</p>
+    </div>
+</body>
+</html>

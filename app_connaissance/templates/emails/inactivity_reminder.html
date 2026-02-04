@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rappel de progression</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .button {
+            display: inline-block;
+            background: #f5576c;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background: #e63946;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="icon">⏰</div>
+        <h1>Votre plan d'intégration vous attend !</h1>
+        <p>Reprenons là où nous nous sommes arrêtés</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{ user.get_full_name|default:user.username }} !</h2>
+        
+        <div class="alert">
+            <strong>⚠️ Rappel :</strong> Cela fait {{ days_inactive }} jours que vous n'avez pas progressé dans votre plan d'intégration.
+        </div>
+        
+        <p>Nous avons remarqué que vous n'avez pas été actif{{ 'e' if user.profile.gender == 'F' else '' }} sur votre plan d'intégration depuis {{ days_inactive }} jours. Pas d'inquiétude, nous sommes là pour vous aider à reprendre le fil !</p>
+        
+        <h3>🎯 Pourquoi reprendre maintenant ?</h3>
+        <ul>
+            <li><strong>Garder l'élan</strong> : Les connaissances fraîches sont plus faciles à intégrer</li>
+            <li><strong>Ne pas perdre le bénéfice</strong> de ce que vous avez déjà appris</li>
+            <li><strong>Atteindre vos objectifs</strong> plus rapidement</li>
+            <li><strong>Montrer votre motivation</strong> à votre équipe</li>
+        </ul>
+        
+        <h3>💡 Suggestions pour reprendre :</h3>
+        <ol>
+            <li><strong>Commencez petit</strong> : Une seule étape ou un quiz court</li>
+            <li><strong>Fixez un objectif</strong> : 15 minutes par jour</li>
+            <li><strong>Planifiez</strong> : Bloquez un créneau dans votre agenda</li>
+            <li><strong>Demandez de l'aide</strong> : Votre manager ou un collègue</li>
+        </ol>
+        
+        <h3>📊 Votre état actuel :</h3>
+        <p>
+            {% if progression %}
+                Vous êtes à {{ progression.pourcentage }}% de votre plan d'intégration.
+                {% if progression.pourcentage >= 50 %}
+                    Bravo, vous avez déjà passé la moitié !
+                {% elif progression.pourcentage >= 25 %}
+                    Bon début, continuez comme ça !
+                {% else %}
+                    Le plus dur est de commencer, vous y êtes presque !
+                {% endif %}
+            {% else %}
+                Vous n'avez pas encore commencé votre plan. C'est le moment parfait !
+            {% endif %}
+        </p>
+        
+        <div style="text-align: center;">
+            <a href="{{ plan_url }}" class="button">Reprendre mon plan d'intégration</a>
+        </div>
+        
+        <h3>🤘 Besoin d'aide ?</h3>
+        <p>N'hésitez pas à contacter :</p>
+        <ul>
+            <li>Votre manager direct</li>
+            <li>L'équipe RH</li>
+            <li>Le support technique : integration@entreprise.com</li>
+        </ul>
+        
+        <p>Nous croyons en vous et sommes là pour vous accompagner. Chaque petit pas compte !</p>
+        
+        <p>À très bientôt sur votre plan d'intégration !</p>
+        
+        <p><strong>L'équipe d'intégration</strong></p>
+    </div>
+    
+    <div class="footer">
+        <p>Cet email a été envoyé automatiquement par le système d'intégration.</p>
+        <p>Pour ne plus recevoir ces rappels, contactez-nous à integration@entreprise.com</p>
+    </div>
+</body>
+</html>
