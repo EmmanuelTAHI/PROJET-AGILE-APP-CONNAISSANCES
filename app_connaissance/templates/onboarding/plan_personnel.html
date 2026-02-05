@@ -17,12 +17,6 @@
           {% if plan.duree_estimee_jours %}
             <span class="mt-1 block font-medium text-slate-700">Durée estimée : {{ plan.duree_estimee_jours }} jour{{ plan.duree_estimee_jours|pluralize }}</span>
           {% endif %}
-          {% if profile %}
-            <span class="mt-2 block font-medium text-slate-700">
-              {% if profile.department %}Département : {{ profile.department.name }}{% endif %}
-              {% if profile.poste %} • Poste : {{ profile.poste.intitule }}{% endif %}
-            </span>
-          {% endif %}
         </p>
       </div>
       <a href="{% url 'onboarding_home' %}" class="inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
@@ -39,11 +33,8 @@
           <div class="flex items-center gap-3">
             <div class="flex-1 min-w-0 max-w-xs">
               <div class="h-3 overflow-hidden rounded-full bg-slate-200">
-                {% if progress.pourcentage == 100 %}
-                  <div class="progress-bar-emerald h-full rounded-full transition-all duration-500 ease-out" data-width="{{ progress.pourcentage }}"></div>
-                {% else %}
-                  <div class="progress-bar-sky h-full rounded-full transition-all duration-500 ease-out" data-width="{{ progress.pourcentage }}"></div>
-                {% endif %}
+                <div class="h-full rounded-full transition-all duration-500 ease-out {% if progress.pourcentage == 100 %}bg-gradient-to-r from-emerald-500 to-emerald-600{% else %}bg-gradient-to-r from-sky-500 to-sky-600{% endif %}"
+                  style="width: {{ progress.pourcentage }}%;"></div>
               </div>
             </div>
             <span class="text-2xl font-bold tabular-nums text-sky-600">{{ progress.pourcentage }} %</span>
@@ -69,24 +60,11 @@
               {% endif %}
               {% if item.steps %}
                 <div class="mt-4 space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  <div class="flex items-center justify-between">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sous-étapes</div>
-                    <div class="text-xs font-medium text-slate-600">
-                      {{ item.steps|length }} étape{{ item.steps|length|pluralize }} - 
-                      <span class="{% if item.steps|length == item.steps_completed|length %}text-emerald-600{% else %}text-sky-600{% endif %}">
-                        {{ item.steps_completed|length }} complétée{{ item.steps_completed|length|pluralize }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="w-full bg-slate-200 rounded-full h-2 mb-3">
-                    <div class="module-progress-bar bg-sky-500 h-2 rounded-full transition-all duration-300" 
-                         data-steps-total="{{ item.steps|length }}" 
-                         data-steps-completed="{{ item.steps_completed|length }}"></div>
-                  </div>
+                  <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sous-étapes</div>
                   <ul class="space-y-2">
                     {% for step in item.steps %}
                       <li class="flex items-center gap-3">
-                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-sky-200 hover:bg-sky-50/50 focus-within:ring-2 focus-within:ring-sky-500/30 {% if step.id in item.completed_step_ids %}bg-emerald-50 border-emerald-200{% endif %}">
+                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-sky-200 hover:bg-sky-50/50 focus-within:ring-2 focus-within:ring-sky-500/30">
                           <input type="checkbox"
                                  class="step-checkbox h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                                  data-step-id="{{ step.id }}"
@@ -95,50 +73,9 @@
                           <span class="step-label text-sm font-medium {% if step.id in item.completed_step_ids %}line-through text-slate-500{% else %}text-slate-700{% endif %}">{{ step.titre }}</span>
                         </label>
                         {% if step.id in item.completed_step_ids %}
-                          <span class="text-xs text-emerald-600 font-medium">
-                            <i data-lucide="check-circle" class="inline h-4 w-4"></i> Terminé
-                          </span>
-                        {% else %}
-                          <span class="text-xs text-slate-400">
-                            <i data-lucide="circle" class="inline h-4 w-4"></i> À faire
-                          </span>
+                          <span class="text-xs text-emerald-600"><i data-lucide="check" class="inline h-3.5 w-3.5"></i></span>
                         {% endif %}
                       </li>
-                    {% endfor %}
-                  </ul>
-                </div>
-              {% endif %}
-              
-              {# Ajout des connaissances liées au module #}
-              {% if item.knowledge_items %}
-                <div class="mt-4 space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                  <div class="text-xs font-semibold uppercase tracking-wider text-blue-500">Connaissances associées</div>
-                  <ul class="space-y-2">
-                    {% for knowledge_data in item.knowledge_items %}
-                      {% with knowledge_item=knowledge_data.item %}
-                        <li class="flex items-center gap-3">
-                          <a href="{% url 'knowledge_detail' knowledge_item.id %}" 
-                             class="flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 transition hover:border-blue-300 hover:bg-blue-50/50">
-                            <i data-lucide="book-open" class="h-4 w-4 text-blue-500"></i>
-                            <div class="flex-1 min-w-0">
-                              <div class="text-sm font-medium text-slate-700 truncate">{{ knowledge_item.title }}</div>
-                              <div class="text-xs text-slate-500">
-                                {% if knowledge_item.kind %}{{ knowledge_item.kind.name }}{% endif %}
-                                {% if knowledge_item.read_time_min %} • {{ knowledge_item.read_time_min }} min{% endif %}
-                              </div>
-                            </div>
-                            {% if knowledge_item.status == 'published' %}
-                              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Validé
-                              </span>
-                            {% elif knowledge_item.status == 'in_review' %}
-                              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                En validation
-                              </span>
-                            {% endif %}
-                          </a>
-                        </li>
-                      {% endwith %}
                     {% endfor %}
                   </ul>
                 </div>
@@ -179,31 +116,6 @@
   </div>
 
   <script>
-    // Définir la largeur des barres de progression
-    document.addEventListener('DOMContentLoaded', function() {
-      // Barre de progression principale
-      const progressBars = document.querySelectorAll('[data-width]');
-      progressBars.forEach(bar => {
-        const width = bar.getAttribute('data-width');
-        bar.style.width = width + '%';
-      });
-
-      // Barres de progression des modules
-      const moduleBars = document.querySelectorAll('.module-progress-bar');
-      moduleBars.forEach(bar => {
-        const total = parseInt(bar.getAttribute('data-steps-total'));
-        const completed = parseInt(bar.getAttribute('data-steps-completed'));
-        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-        bar.style.width = percentage + '%';
-        
-        // Changer la couleur si complété
-        if (percentage === 100) {
-          bar.classList.remove('bg-sky-500');
-          bar.classList.add('bg-emerald-500');
-        }
-      });
-    });
-
     function getCsrfToken() {
       const name = "csrftoken";
       const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
@@ -212,8 +124,6 @@
     function toggleStep(checkbox) {
       const stepId = checkbox.dataset.stepId;
       const span = checkbox.closest("li").querySelector("span.step-label");
-      const statusIcon = checkbox.closest("li").querySelector("span:last-child i");
-      
       fetch("{% url 'module_step_toggle' 0 %}".replace("0", stepId), {
         method: "POST",
         headers: {
@@ -228,44 +138,14 @@
             if (data.checked) {
               span.classList.remove("text-slate-700");
               span.classList.add("line-through", "text-slate-500");
-              checkbox.closest("label").classList.add("bg-emerald-50", "border-emerald-200");
-              
-              // Mettre à jour l'icône
-              statusIcon.setAttribute("data-lucide", "check-circle");
-              statusIcon.parentElement.classList.remove("text-slate-400");
-              statusIcon.parentElement.classList.add("text-emerald-600", "font-medium");
-              statusIcon.nextElementSibling.textContent = " Terminé";
             } else {
               span.classList.add("text-slate-700");
               span.classList.remove("line-through", "text-slate-500");
-              checkbox.closest("label").classList.remove("bg-emerald-50", "border-emerald-200");
-              
-              // Mettre à jour l'icône
-              statusIcon.setAttribute("data-lucide", "circle");
-              statusIcon.parentElement.classList.add("text-slate-400");
-              statusIcon.parentElement.classList.remove("text-emerald-600", "font-medium");
-              statusIcon.nextElementSibling.textContent = " À faire";
             }
-            
-            // Recharger les icônes Lucide
-            if (typeof lucide !== 'undefined') {
-              lucide.createIcons();
-            }
-            
-            // Recharger la page pour mettre à jour la progression globale
-            setTimeout(() => location.reload(), 500);
+            location.reload();
           }
         })
         .catch(() => location.reload());
     }
   </script>
-
-  <style>
-    .progress-bar-emerald {
-      background: linear-gradient(to right, rgb(16 185 129), rgb(5 150 105));
-    }
-    .progress-bar-sky {
-      background: linear-gradient(to right, rgb(14 165 233), rgb(2 132 199));
-    }
-  </style>
 {% endblock %}
