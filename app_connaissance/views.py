@@ -71,24 +71,6 @@ def _estimate_read_time_min(content: str) -> int:
     return max(1, round(words / 200) or 1)
 
 
-def _filter_knowledge_for_user(request: HttpRequest, qs):
-    """Retourne le queryset restreint selon le rôle et le département de l'utilisateur.
-    - Les 'admin' et 'manager' voient tout.
-    - Les autres utilisateurs ne voient que les contenus attachés à leur département.
-    """
-    profile = getattr(request.user, "profile", None)
-    # Pas de profil -> pas de contenu
-    if not profile:
-        return qs.none()
-    # Admins et managers voient tout
-    if profile.role in ("admin", "manager"):
-        return qs
-    # Les employés voient uniquement les contenus de leur département
-    if getattr(profile, "department_id", None):
-        return qs.filter(department_id=profile.department_id)
-    return qs.none()
-
-
 def index_redirect(request: HttpRequest) -> HttpResponse:
     """Première page : redirige vers login si non connecté, sinon dashboard ou changement mot de passe."""
     if request.user.is_authenticated:
@@ -192,8 +174,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     role = profile.role if profile else None
 
     knowledge_qs = KnowledgeItem.objects.select_related("department").prefetch_related("tags")
-    # Restreindre la portée selon le rôle / département de l'utilisateur
-    knowledge_qs = _filter_knowledge_for_user(request, knowledge_qs)
     pending_validation = list(knowledge_qs.filter(status=KnowledgeItem.Status.IN_REVIEW)[:8])
 
     agg = knowledge_qs.aggregate(
@@ -261,9 +241,6 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
     if department:
         items_qs = items_qs.filter(department__id=department)
 
-    # Appliquer la restriction par département selon l'utilisateur connecté
-    items_qs = _filter_knowledge_for_user(request, items_qs)
-
     kinds = KnowledgeKind.objects.all()
     departments = Department.objects.all()
 
@@ -282,23 +259,9 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
 
 
 def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
-    """Vérifie si l'utilisateur peut consulter cette connaissance.
-
-    - Pour les contenus publiés, seuls les admins/managers ET les employés du même département y ont accès.
-    - Pour les contenus non publiés, l'auteur, les managers et admins peuvent y accéder.
-    """
-    # Cas : publié -> restreindre par département sauf pour admin/manager
+    """Vérifie si l'utilisateur peut consulter cette connaissance (publiée, auteur, manager, admin)."""
     if item.status == KnowledgeItem.Status.PUBLISHED:
-        profile = getattr(request.user, "profile", None)
-        if not profile:
-            return False
-        if profile.role in ("admin", "manager"):
-            return True
-        if profile.department_id and item.department_id == profile.department_id:
-            return True
-        return False
-
-    # Cas : non publié -> autorisation habituelle
+        return True
     profile = getattr(request.user, "profile", None)
     if not profile:
         return False
