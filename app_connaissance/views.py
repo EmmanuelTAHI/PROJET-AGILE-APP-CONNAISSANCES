@@ -759,62 +759,30 @@ def _get_user_plan(request: HttpRequest) -> PlanIntegration | None:
 
 def _progress_for_plan(user, plan: PlanIntegration) -> dict:
     """Calcule la progression (pourcentage, modules complétés, quiz passés, sous-étapes)."""
-    # Optimisation: Utiliser select_related et prefetch_related pour minimiser les requêtes
     modules = list(
-        plan.modules.prefetch_related(
-            "quiz", 
-            "quiz__questions", 
-            "quiz__questions__choices", 
-            "steps",
-            "knowledge_links",
-            "knowledge_links__knowledge_item",
-            "knowledge_links__knowledge_item__versions"
-        )
-        .select_related("plan")
+        plan.modules.prefetch_related("quiz", "quiz__questions", "quiz__questions__choices", "steps")
         .order_by("ordre")
     )
     total = len(modules)
     if total == 0:
         return {"pourcentage": 0, "modules": [], "progression_obj": None}
 
-    # Optimisation: Récupérer toutes les données en une seule requête
-    quiz_attempts = UserQuizAttempt.objects.filter(
-        user=user, 
-        quiz__module__plan=plan
-    ).select_related("quiz", "quiz__module")
-    
-    step_completions = UserModuleStepCompletion.objects.filter(
-        user=user,
-        module_step__module__plan=plan
-    ).select_related("module_step", "module_step__module")
-    
-    # Créer des sets pour un accès rapide
     quiz_passed_ids = set(
-        attempt.quiz_id for attempt in quiz_attempts if attempt.passed
+        UserQuizAttempt.objects.filter(user=user, passed=True).values_list("quiz_id", flat=True)
     )
     completed_step_ids = set(
-        completion.module_step_id for completion in step_completions
+        UserModuleStepCompletion.objects.filter(user=user)
+        .values_list("module_step_id", flat=True)
     )
-    
     completed = 0
     module_status = []
     for mod in modules:
-        has_quiz = hasattr(mod, "quiz") and mod.quiz
-        steps = list(getattr(mod, "steps", []).all())
+        has_quiz = hasattr(mod, "quiz") and mod.quiz_id
+        steps = list(getattr(mod, "steps", []))
         steps_completed = [s for s in steps if s.id in completed_step_ids]
         steps_passed = len(steps) == 0 or len(steps_completed) == len(steps)
-        
-        # Récupérer les connaissances liées à ce module
-        knowledge_items = []
-        if hasattr(mod, 'knowledge_links'):
-            for link in mod.knowledge_links.all().order_by('ordre'):
-                knowledge_items.append({
-                    'item': link.knowledge_item,
-                    'ordre': link.ordre
-                })
-        
         if has_quiz:
-            quiz_passed = mod.quiz.id and mod.quiz.id in quiz_passed_ids
+            quiz_passed = mod.quiz_id and mod.quiz_id in quiz_passed_ids
             mod_passed = quiz_passed and steps_passed
             if mod_passed:
                 completed += 1
@@ -826,7 +794,6 @@ def _progress_for_plan(user, plan: PlanIntegration) -> dict:
                 "steps": steps,
                 "steps_completed": steps_completed,
                 "completed_step_ids": completed_step_ids,
-                "knowledge_items": knowledge_items,  # Ajout des connaissances
             })
         else:
             mod_passed = steps_passed
@@ -840,7 +807,6 @@ def _progress_for_plan(user, plan: PlanIntegration) -> dict:
                 "steps": steps,
                 "steps_completed": steps_completed,
                 "completed_step_ids": completed_step_ids,
-                "knowledge_items": knowledge_items,  # Ajout des connaissances
             })
 
     pourcentage = round((completed / total) * 100) if total else 0
@@ -892,14 +858,6 @@ def plan_integration_personnel(request: HttpRequest) -> HttpResponse:
     if not plan:
         messages.info(request, "Aucun plan d'intégration n'est associé à votre poste. Consultez les étapes générales ci-dessous.")
         return redirect("onboarding_home")
-    
-    # Récupérer le profil utilisateur pour afficher le contexte
-    profile = (
-        UserProfile.objects.filter(user=request.user)
-        .select_related("department", "poste")
-        .first()
-    )
-    
     progress = _progress_for_plan(request.user, plan)
     return render(
         request,
@@ -907,7 +865,6 @@ def plan_integration_personnel(request: HttpRequest) -> HttpResponse:
         {
             "plan": plan,
             "progress": progress,
-            "profile": profile,  # Ajout du profil pour le contexte
         },
     )
 
@@ -921,7 +878,7 @@ def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
     )
     # Vérifier que le quiz appartient au plan du poste/département de l'utilisateur
     plan = _get_user_plan(request)
-    if not plan or not quiz.module or getattr(quiz.module, "plan_id", None) != plan.id:
+    if not plan or not quiz.module_id or getattr(quiz.module, "plan_id", None) != plan.id:
         messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
         return redirect("onboarding_home")
 
