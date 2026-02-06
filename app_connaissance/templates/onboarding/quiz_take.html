@@ -5,10 +5,17 @@
 {% block content %}
   <div class="mx-auto max-w-2xl space-y-8">
     <header class="space-y-1">
-      <a href="{% url 'plan_integration_personnel' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-sky-600">
-        <i data-lucide="arrow-left" class="h-4 w-4"></i>
-        Retour au plan
-      </a>
+      {% if quiz.knowledge_item %}
+        <a href="{% url 'knowledge_detail' quiz.knowledge_item.id %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-sky-600">
+          <i data-lucide="arrow-left" class="h-4 w-4"></i>
+          Retour à la connaissance
+        </a>
+      {% else %}
+        <a href="{% url 'plan_integration_personnel' %}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-sky-600">
+          <i data-lucide="arrow-left" class="h-4 w-4"></i>
+          Retour au plan
+        </a>
+      {% endif %}
       <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ quiz.titre }}</h1>
       <p class="text-slate-600">Réussite à partir de <strong>{{ quiz.seuil_reussite_pct }} %</strong>. Répondez à toutes les questions puis validez.</p>
     </header>
@@ -39,9 +46,15 @@
           <i data-lucide="send" class="h-4 w-4"></i>
           Valider le quiz
         </button>
-        <a href="{% url 'plan_integration_personnel' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-          Annuler
-        </a>
+        {% if quiz.knowledge_item %}
+          <a href="{% url 'knowledge_detail' quiz.knowledge_item.id %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+            Annuler
+          </a>
+        {% else %}
+          <a href="{% url 'plan_integration_personnel' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+            Annuler
+          </a>
+        {% endif %}
       </footer>
     </form>
   </div>

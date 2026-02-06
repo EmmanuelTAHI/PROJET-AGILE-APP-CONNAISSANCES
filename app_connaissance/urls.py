@@ -34,6 +34,7 @@ urlpatterns = [
     path('connaissances/<int:knowledge_id>/', views.knowledge_detail, name='knowledge_detail'),
     path('connaissances/<int:knowledge_id>/modifier/', views.knowledge_edit, name='knowledge_edit'),
     path('connaissances/<int:knowledge_id>/dupliquer/', views.knowledge_duplicate, name='knowledge_duplicate'),
+    path('connaissances/<int:knowledge_id>/generate-quiz/', views.knowledge_generate_quiz, name='knowledge_generate_quiz'),
 
     # Validation (manager)
     path('validation/', views.validation_queue, name='validation_queue'),

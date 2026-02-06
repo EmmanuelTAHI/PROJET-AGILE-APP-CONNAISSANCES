@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import random
+import re
 import secrets
 import string
 
@@ -23,6 +25,7 @@ from django.utils import timezone
 
 from .forms import DepartmentForm, OnboardingStepForm, ProfileEditForm, UserCreateForm
 from .frontend_auth import frontend_login_required, frontend_roles_required
+from .services import generate_quiz_for_knowledge
 from .models import (
     Department,
     KnowledgeItem,
@@ -229,7 +232,7 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
 
     # La liste publique ne montre que les contenus publiés
     items_qs = (
-        KnowledgeItem.objects.select_related("department")
+        KnowledgeItem.objects.select_related("department", "kind", "quiz")
         .prefetch_related("tags", "versions")
         .annotate(version_count=Count("versions"))
         .filter(status=KnowledgeItem.Status.PUBLISHED)
@@ -275,7 +278,7 @@ def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
 @frontend_login_required
 def knowledge_detail(request: HttpRequest, knowledge_id: int) -> HttpResponse:
     item = get_object_or_404(
-        KnowledgeItem.objects.select_related("department", "author_user").prefetch_related(
+        KnowledgeItem.objects.select_related("department", "author_user", "quiz").prefetch_related(
             "tags", "competences", "versions"
         ),
         pk=knowledge_id,
@@ -870,17 +873,47 @@ def plan_integration_personnel(request: HttpRequest) -> HttpResponse:
 
 
 @frontend_login_required
+def knowledge_generate_quiz(request: HttpRequest, knowledge_id: int) -> HttpResponse:
+    item = get_object_or_404(KnowledgeItem, pk=knowledge_id)
+    if not _can_edit_knowledge(request, item):
+         messages.error(request, "Droit insuffisant pour générer un quiz.")
+         return redirect("knowledge_detail", knowledge_id=item.id)
+    
+    # Check if quiz already exists
+    if hasattr(item, "quiz"):
+        messages.info(request, "Un quiz existe déjà pour cette connaissance.")
+        return redirect("knowledge_detail", knowledge_id=item.id)
+
+    quiz = generate_quiz_for_knowledge(item)
+    
+    if not quiz:
+        messages.warning(request, "Contenu trop court ou insuffisant pour générer un quiz automatiquement.")
+    else:
+        count = quiz.questions.count()
+        messages.success(request, f"Quiz généré avec {count} questions.")
+        
+    return redirect("knowledge_detail", knowledge_id=item.id)
+
+
+@frontend_login_required
 def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
     """Affiche un quiz et enregistre les réponses (score, passage)."""
     quiz = get_object_or_404(
-        Quiz.objects.select_related("module").prefetch_related("questions", "questions__choices"),
+        Quiz.objects.select_related("module", "knowledge_item").prefetch_related("questions", "questions__choices"),
         pk=quiz_id,
     )
-    # Vérifier que le quiz appartient au plan du poste/département de l'utilisateur
-    plan = _get_user_plan(request)
-    if not plan or not quiz.module_id or getattr(quiz.module, "plan_id", None) != plan.id:
-        messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
-        return redirect("onboarding_home")
+    
+    plan = None
+    if quiz.knowledge_item:
+         if not _can_view_knowledge(request, quiz.knowledge_item):
+             messages.error(request, "Vous n'avez pas accès à ce quiz.")
+             return redirect("knowledge_list")
+    else:
+        # Vérifier que le quiz appartient au plan du poste/département de l'utilisateur
+        plan = _get_user_plan(request)
+        if not plan or not quiz.module_id or getattr(quiz.module, "plan_id", None) != plan.id:
+            messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
+            return redirect("onboarding_home")
 
     if request.method == "POST":
         # Corriger les réponses : question_id -> choice_id (choix sélectionné)
@@ -892,30 +925,69 @@ def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
         total_questions = quiz.questions.count()
         if total_questions == 0:
             messages.warning(request, "Ce quiz n'a pas de questions.")
+            if quiz.knowledge_item:
+                 return redirect("knowledge_detail", knowledge_id=quiz.knowledge_item.id)
             return redirect("plan_integration_personnel")
 
         correct = 0
+        questions_results = []
+        
         for q in quiz.questions.all():
             choice_id = selected.get(q.id)
+            is_correct = False
+            correct_choice = None
+            
+            # Find correct choice for this question
+            choices = list(q.choices.all()) # Use prefetch
+            for c in choices:
+                if c.is_correct:
+                    correct_choice = c
+                    break
+            
             if choice_id:
-                if QuizChoice.objects.filter(question=q, id=choice_id, is_correct=True).exists():
-                    correct += 1
+                # Check if selected is correct
+                # We can do this in memory since we have the list
+                for c in choices:
+                    if c.id == choice_id and c.is_correct:
+                        is_correct = True
+                        break
+            
+            if is_correct:
+                correct += 1
+                
+            questions_results.append({
+                "question": q,
+                "user_choice_id": choice_id,
+                "is_correct": is_correct,
+                "correct_choice": correct_choice,
+                "choices": choices
+            })
+
         score_pct = round((correct / total_questions) * 100)
         passed = score_pct >= quiz.seuil_reussite_pct
 
-        attempt, _ = UserQuizAttempt.objects.update_or_create(
-            user=request.user,
-            quiz=quiz,
-            defaults={"score_pct": score_pct, "passed": passed},
-        )
+        if request.user.is_authenticated:
+            attempt, _ = UserQuizAttempt.objects.update_or_create(
+                user=request.user,
+                quiz=quiz,
+                defaults={"score_pct": score_pct, "passed": passed},
+            )
 
-        _progress_for_plan(request.user, plan)
-
-        if passed:
-            messages.success(request, f"Quiz réussi avec {score_pct} %.")
+            if plan:
+                 _progress_for_plan(request.user, plan)
         else:
-            messages.warning(request, f"Score : {score_pct} %. Il faut {quiz.seuil_reussite_pct} % pour valider. Vous pouvez réessayer.")
-        return redirect("plan_integration_personnel")
+             messages.info(request, "Vous êtes en mode invité : votre résultat ne sera pas enregistré.")
+
+        return render(
+            request,
+            "onboarding/quiz_result.html",
+            {
+                "quiz": quiz,
+                "score_pct": score_pct,
+                "passed": passed,
+                "questions_results": questions_results,
+            }
+        )
 
     return render(
         request,
