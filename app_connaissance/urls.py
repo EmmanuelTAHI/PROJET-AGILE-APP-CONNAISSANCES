@@ -2,6 +2,7 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 
 from . import api_views, views
+from .views import generate_quiz
 
 urlpatterns = [
     path("api/reference/create/", api_views.reference_create_api, name="api_reference_create"),
@@ -34,7 +35,13 @@ urlpatterns = [
     path('connaissances/<int:knowledge_id>/', views.knowledge_detail, name='knowledge_detail'),
     path('connaissances/<int:knowledge_id>/modifier/', views.knowledge_edit, name='knowledge_edit'),
     path('connaissances/<int:knowledge_id>/dupliquer/', views.knowledge_duplicate, name='knowledge_duplicate'),
-
+    path('connaissances/<int:knowledge_id>/extract-text/', views.extract_knowledge_text, name='extract_knowledge_text'),
+ 
+    # urls.py
+   path('connaissances/<int:knowledge_id>/quiz/', views.knowledge_quiz_take, name='knowledge_quiz_take'),
+   path('connaissances/<int:knowledge_id>/quiz/check/<int:question_id>/', views.knowledge_quiz_check_choice, name='knowledge_quiz_check_choice'),
+   path('connaissances/<int:knowledge_id>/quiz/submit/', views.knowledge_quiz_submit, name='knowledge_quiz_submit'),
+ 
     # Validation (manager)
     path('validation/', views.validation_queue, name='validation_queue'),
     path('validation/<int:knowledge_id>/approve/', views.validation_approve, name='validation_approve'),
@@ -59,4 +66,19 @@ urlpatterns = [
 
     # Profil
     path('profil/', views.profile, name='profile'),
+
+    # Génération de quiz
+    path('generate-quiz/<int:knowledge_id>/', generate_quiz, name='generate_quiz'),
+
+
+     path('connaissances/<int:knowledge_id>/quiz/edit/', views.knowledge_quiz_edit, name='knowledge_quiz_edit'),
+    
+    # API Quiz
+    path('api/quiz/<int:quiz_id>/questions/add/', views.quiz_add_question, name='api_quiz_add_question'),
+    path('api/quiz/questions/<int:question_id>/delete/', views.quiz_delete_question, name='api_quiz_delete_question'),
+    path('api/quiz/questions/<int:question_id>/choices/add/', views.quiz_add_choice, name='api_quiz_add_choice'),
+    path('api/quiz/choices/<int:choice_id>/delete/', views.quiz_delete_choice, name='api_quiz_delete_choice'),
+    path('api/quiz/choices/<int:choice_id>/mark-correct/', views.quiz_mark_choice_correct, name='api_quiz_mark_choice_correct'),
+    path('api/quiz/<int:quiz_id>/save/', views.quiz_save, name='api_quiz_save'),
+    path('api/quiz/<int:quiz_id>/delete/', views.quiz_delete, name='api_quiz_delete'),
 ]

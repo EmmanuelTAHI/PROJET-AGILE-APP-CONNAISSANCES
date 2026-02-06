@@ -4,6 +4,10 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.template.defaultfilters import slugify
+from PyPDF2 import PdfReader
+import os
+import re
+import random
 
 
 class Entreprise(models.Model):
@@ -217,6 +221,13 @@ class KnowledgeKind(models.Model):
 
     def __str__(self) -> str:
         return self.name
+    
+def _clean_sentences(text: str) -> list[str]:
+    text = (text or "").strip()
+    text = re.sub(r"\s+", " ", text)
+    sentences = re.split(r"(?<=[\.\!\?])\s+", text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) >= 40]
+    return sentences
 
 
 class KnowledgeItem(models.Model):
@@ -263,6 +274,14 @@ class KnowledgeItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(blank=True, null=True)
+    quiz = models.OneToOneField(
+        Quiz,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="knowledge_item",
+        help_text="Quiz associé à cette connaissance."
+    )
 
     class Meta:
         ordering = ["-updated_at", "-created_at"]
@@ -285,6 +304,107 @@ class KnowledgeItem(models.Model):
                 return profile.display_name
             return self.author_user.get_full_name() or self.author_user.get_username()
         return self.author or "—"
+
+    def extract_text(self):
+        """
+        Extraire le texte source de la connaissance.
+        - Si le contenu est direct, retourne `content`.
+        - Si un fichier PDF est attaché, extrait le texte du PDF.
+        - Si une URL vidéo est fournie, retourne un message indiquant qu'une transcription est nécessaire.
+        """
+        if self.content:
+            return self.content
+
+        if self.attachment and self.attachment.name.endswith('.pdf'):
+            try:
+                pdf_path = self.attachment.path
+                reader = PdfReader(pdf_path)
+                text = "\n".join(page.extract_text() for page in reader.pages)
+                return text
+            except Exception as e:
+                return f"Erreur lors de l'extraction du texte du PDF : {str(e)}"
+
+        if self.video_url:
+            return "Transcription vidéo requise."
+
+        return "Aucun contenu disponible."
+
+    def generate_quiz(self, num_questions: int = 5, num_choices: int = 4):
+        """
+        Génère (ou régénère) un quiz QCM lié à cette connaissance.
+        """
+        source = self.extract_text()
+        if not source or source.startswith("Erreur") or source in ("Aucun contenu disponible.", "Transcription vidéo requise."):
+            return None
+
+        # Créer ou réutiliser le quiz
+        quiz = self.quiz if self.quiz_id else Quiz.objects.create(titre=f"Quiz pour {self.title}")
+
+        # Nettoyer anciennes questions (régénération)
+        quiz.questions.all().delete()
+
+        sentences = _clean_sentences(source)
+        if not sentences:
+            sentences = [source[:250] + ("..." if len(source) > 250 else "")]
+
+        random.shuffle(sentences)
+        sentences = sentences[:num_questions]
+
+        # Pool de mots pour distracteurs
+        pool = list({w for w in re.findall(r"[A-Za-zÀ-ÿ0-9\-']+", source) if len(w) >= 6})
+        random.shuffle(pool)
+
+        created = 0
+        for idx, s in enumerate(sentences, start=1):
+            words = re.findall(r"[A-Za-zÀ-ÿ0-9\-']+", s)
+            candidates = [w for w in words if len(w) >= 6]
+            if not candidates:
+                continue
+
+            answer = random.choice(candidates)
+            enonce = s.replace(answer, "_____")
+
+            q = QuizQuestion.objects.create(
+                quiz=quiz,
+                enonce=f"Complète la phrase : {enonce}",
+                ordre=idx,
+            )
+
+            distractors = [w for w in pool if w != answer][: max(0, num_choices - 1)]
+            while len(distractors) < (num_choices - 1):
+                distractors.append(f"Option{len(distractors)+1}")
+
+            choices = distractors + [answer]
+            random.shuffle(choices)
+
+            QuizChoice.objects.bulk_create([
+                QuizChoice(question=q, texte=c, is_correct=(c == answer))
+                for c in choices
+            ])
+
+            created += 1
+
+        # fallback si rien créé
+        if created == 0:
+            q = QuizQuestion.objects.create(
+                quiz=quiz,
+                enonce="Exemple : quel est le sujet principal de cette connaissance ?",
+                ordre=1,
+            )
+            QuizChoice.objects.bulk_create([
+                QuizChoice(question=q, texte="Option correcte (à améliorer)", is_correct=True),
+                QuizChoice(question=q, texte="Option 2", is_correct=False),
+                QuizChoice(question=q, texte="Option 3", is_correct=False),
+                QuizChoice(question=q, texte="Option 4", is_correct=False),
+            ])
+
+        # ✅ Lier quiz à la connaissance
+        if not self.quiz_id:
+            self.quiz = quiz
+            self.save(update_fields=["quiz"])
+
+        return quiz
+
 
 
 class KnowledgeVersion(models.Model):

@@ -1,0 +1,489 @@
+{% extends "_layouts/app.html" %}
+{% block title %}Quiz - {{ item.title }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Animations et styles personnalisés */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slideOut {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+  
+  .question-enter {
+    animation: slideIn 0.4s ease-out;
+  }
+  
+  .question-exit {
+    animation: slideOut 0.3s ease-in;
+  }
+  
+  .choice-btn {
+    transition: all 0.2s ease;
+  }
+  
+  .choice-btn:hover:not(:disabled) {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  .choice-btn:disabled {
+    cursor: not-allowed;
+  }
+  
+  .choice-correct {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #10b981 !important;
+    animation: pulse 0.5s ease;
+  }
+  
+  .choice-incorrect {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #ef4444 !important;
+    animation: pulse 0.5s ease;
+  }
+  
+  .progress-bar-fill {
+    transition: width 0.4s ease;
+    background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+  }
+  
+  .feedback-success {
+    color: #10b981;
+    animation: slideIn 0.3s ease;
+  }
+  
+  .feedback-error {
+    color: #ef4444;
+    animation: slideIn 0.3s ease;
+  }
+</style>
+
+<div class="max-w-4xl mx-auto space-y-6 py-8 px-4">
+  
+  <!-- En-tête avec retour à la connaissance -->
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex items-center gap-3 text-sm text-slate-500">
+      <a href="{% url 'knowledge_detail' item.id %}" class="inline-flex items-center gap-2 hover:text-sky-600 transition">
+        <i data-lucide="arrow-left" class="h-4 w-4"></i>
+        Retour à la connaissance
+      </a>
+      <span>•</span>
+      <span>Quiz d'évaluation</span>
+    </div>
+    <h1 class="mt-3 text-3xl font-bold text-slate-900">{{ item.title }}</h1>
+    <p class="mt-2 text-slate-600">
+      Réponds aux questions ci-dessous. Après chaque réponse, tu verras immédiatement si elle est correcte ou non.
+    </p>
+  </div>
+
+  <!-- Barre de progression -->
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+      <div class="text-sm font-semibold text-slate-700">
+        Progression du quiz
+      </div>
+      <div class="text-sm font-bold text-sky-600">
+        <span id="current-question">1</span> / <span id="total-questions">{{ quiz.questions.all|length }}</span>
+      </div>
+    </div>
+    
+    <!-- Barre de progression visuelle -->
+    <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+      <div id="progress-bar" class="progress-bar-fill h-full rounded-full" style="width: 0%"></div>
+    </div>
+    
+    <div class="mt-2 text-xs text-slate-500 text-center">
+      <span id="progress-text">Commence le quiz en répondant à la première question</span>
+    </div>
+  </div>
+
+  <!-- Carte de question -->
+  <div id="quiz-container" class="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+    
+    {% for q in quiz.questions.all %}
+    <div class="question-block p-8 {% if not forloop.first %}hidden{% endif %}" 
+         data-question-id="{{ q.id }}"
+         data-order="{{ forloop.counter }}">
+      
+      <!-- Numéro de question et feedback -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 border border-sky-200 rounded-full">
+          <i data-lucide="message-circle" class="h-4 w-4 text-sky-600"></i>
+          <span class="text-sm font-semibold text-sky-700">Question {{ forloop.counter }}</span>
+        </div>
+        
+        <div id="feedback-{{ q.id }}" class="feedback-container text-sm font-semibold"></div>
+      </div>
+
+      <!-- Énoncé de la question -->
+      <h2 class="text-2xl font-bold text-slate-900 mb-6 leading-relaxed">
+        {{ q.enonce }}
+      </h2>
+
+      <!-- Choix de réponses -->
+      <div class="space-y-3">
+        {% for c in q.choices.all %}
+        <button type="button"
+                class="choice-btn w-full text-left rounded-xl border-2 border-slate-200 bg-white px-6 py-4 text-base text-slate-900 font-medium hover:border-sky-300 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                data-choice-id="{{ c.id }}"
+                data-question-id="{{ q.id }}">
+          <div class="flex items-center gap-3">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full border-2 border-slate-300 flex items-center justify-center text-sm font-bold text-slate-600">
+              {{ forloop.counter|upper }}
+            </div>
+            <div class="flex-1">{{ c.texte }}</div>
+          </div>
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- Explication après réponse (initialement caché) -->
+      <div id="explanation-{{ q.id }}" class="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200 hidden">
+        <div class="flex items-start gap-3">
+          <i data-lucide="info" class="h-5 w-5 text-slate-500 mt-0.5"></i>
+          <div class="text-sm text-slate-700">
+            <span class="font-semibold">Bonne réponse : </span>
+            <span id="correct-answer-{{ q.id }}"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="mt-8 pt-6 border-t border-slate-200 flex items-center justify-between">
+        <button type="button"
+                class="prev-btn inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-300 bg-white text-slate-900 font-semibold hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                {% if forloop.first %}disabled{% endif %}>
+          <i data-lucide="chevron-left" class="h-4 w-4"></i>
+          Précédent
+        </button>
+
+        <button type="button"
+                class="next-btn inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 text-white font-semibold shadow-md hover:bg-sky-500 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled>
+          <span class="next-text">Suivant</span>
+          <i data-lucide="chevron-right" class="h-4 w-4"></i>
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+    
+  </div>
+
+  <!-- Message de fin (caché initialement) -->
+  <div id="completion-message" class="hidden rounded-2xl border border-slate-200 bg-white p-8 shadow-lg text-center">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-100 mb-4">
+      <i data-lucide="check-circle" class="h-8 w-8 text-sky-600"></i>
+    </div>
+    <h3 class="text-2xl font-bold text-slate-900 mb-2">Quiz terminé !</h3>
+    <p class="text-slate-600 mb-6">Analyse de tes réponses en cours...</p>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  // Utilitaires
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  const csrfToken = getCookie('csrftoken');
+  const knowledgeId = {{ item.id|safe }};
+  
+  // État du quiz
+  const state = {
+    currentIndex: 0,
+    totalQuestions: {{ quiz.questions.all|length|safe }},
+    answeredQuestions: new Set(),
+    correctAnswers: 0
+  };
+
+  const blocks = Array.from(document.querySelectorAll('.question-block'));
+
+  // Mise à jour de la barre de progression
+  function updateProgress() {
+    const percentage = (state.answeredQuestions.size / state.totalQuestions) * 100;
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const currentQuestion = document.getElementById('current-question');
+
+    progressBar.style.width = percentage + '%';
+    currentQuestion.textContent = state.currentIndex + 1;
+
+    if (state.answeredQuestions.size === 0) {
+      progressText.textContent = 'Aucune question répondue';
+    } else if (state.answeredQuestions.size === state.totalQuestions) {
+      progressText.textContent = 'Toutes les questions ont été répondues !';
+    } else {
+      progressText.textContent = `${state.answeredQuestions.size} question${state.answeredQuestions.size > 1 ? 's' : ''} répondue${state.answeredQuestions.size > 1 ? 's' : ''}`;
+    }
+  }
+  
+  // Afficher une question spécifique
+  function showQuestion(index) {
+    blocks.forEach((block, i) => {
+      if (i === index) {
+        block.classList.remove('hidden');
+        block.classList.add('question-enter');
+        setTimeout(() => block.classList.remove('question-enter'), 400);
+      } else {
+        block.classList.add('hidden');
+      }
+    });
+    
+    state.currentIndex = index;
+    updateProgress();
+    
+    // Réactiver le bouton suivant si la question a déjà été répondue
+    const currentBlock = blocks[index];
+    const questionId = currentBlock.getAttribute('data-question-id');
+    if (state.answeredQuestions.has(questionId)) {
+      currentBlock.querySelector('.next-btn').disabled = false;
+    }
+  }
+  
+  // Désactiver tous les choix d'une question
+  function disableChoices(block) {
+    block.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.disabled = true;
+    });
+  }
+  
+  // Marquer les choix (correct/incorrect)
+  function markChoices(block, chosenId, correctId, isCorrect) {
+    block.querySelectorAll('.choice-btn').forEach(btn => {
+      const choiceId = btn.getAttribute('data-choice-id');
+      
+      // Marquer la bonne réponse en vert
+      if (String(choiceId) === String(correctId)) {
+        btn.classList.remove('border-slate-200', 'hover:border-sky-300', 'hover:bg-sky-50');
+        btn.classList.add('choice-correct');
+      }
+      
+      // Marquer la mauvaise réponse en rouge si elle a été choisie
+      if (String(choiceId) === String(chosenId) && !isCorrect) {
+        btn.classList.remove('border-slate-200', 'hover:border-sky-300', 'hover:bg-sky-50');
+        btn.classList.add('choice-incorrect');
+      }
+    });
+  }
+  
+  // Afficher le feedback
+  function showFeedback(block, isCorrect, correctChoiceText) {
+    const questionId = block.getAttribute('data-question-id');
+    const feedbackEl = document.getElementById(`feedback-${questionId}`);
+    const explanationEl = document.getElementById(`explanation-${questionId}`);
+    const correctAnswerEl = document.getElementById(`correct-answer-${questionId}`);
+    
+    if (isCorrect) {
+      feedbackEl.innerHTML = '<span class="feedback-success flex items-center gap-2"><i data-lucide="check-circle" class="h-5 w-5"></i> Bonne réponse !</span>';
+    } else {
+      feedbackEl.innerHTML = '<span class="feedback-error flex items-center gap-2"><i data-lucide="x-circle" class="h-5 w-5"></i> Mauvaise réponse</span>';
+    }
+    
+    // Afficher l'explication avec la bonne réponse
+    correctAnswerEl.textContent = correctChoiceText;
+    explanationEl.classList.remove('hidden');
+    
+    // Re-initialiser les icônes Lucide
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
+  
+  // Gérer le clic sur un choix
+  async function handleChoiceClick(event) {
+    const btn = event.currentTarget;
+    const choiceId = btn.getAttribute('data-choice-id');
+    const questionId = btn.getAttribute('data-question-id');
+    const block = btn.closest('.question-block');
+    
+    // Si déjà répondu, ignorer
+    if (state.answeredQuestions.has(questionId)) {
+      return;
+    }
+    
+    try {
+      // Appel API pour vérifier la réponse
+      const response = await fetch(`/connaissances/${knowledgeId}/quiz/check/${questionId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken
+        },
+        body: new URLSearchParams({ choice_id: choiceId }).toString()
+      });
+      
+      const data = await response.json();
+      
+      if (!data.ok) {
+        alert(data.error || "Erreur lors de la vérification");
+        return;
+      }
+      
+      // Marquer la question comme répondue
+      state.answeredQuestions.add(questionId);
+      
+      if (data.is_correct) {
+        state.correctAnswers++;
+      }
+      
+      // Afficher le résultat visuellement
+      markChoices(block, choiceId, data.correct_choice_id, data.is_correct);
+      showFeedback(block, data.is_correct, data.correct_choice_text);
+      
+      // Désactiver tous les choix
+      disableChoices(block);
+      
+      // Activer le bouton suivant
+      const nextBtn = block.querySelector('.next-btn');
+      nextBtn.disabled = false;
+      
+      // Si dernière question, changer le texte du bouton
+      if (state.currentIndex === state.totalQuestions - 1) {
+        nextBtn.querySelector('.next-text').textContent = 'Terminer';
+      }
+      
+      updateProgress();
+      
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Une erreur est survenue. Veuillez réessayer.');
+    }
+  }
+  
+  // Soumettre le quiz final
+  async function submitQuiz() {
+    // Afficher le message de fin
+    document.getElementById('quiz-container').classList.add('hidden');
+    document.getElementById('completion-message').classList.remove('hidden');
+    
+    try {
+      const response = await fetch(`/connaissances/${knowledgeId}/quiz/submit/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!data.ok) {
+        alert(data.error || "Erreur lors de la soumission");
+        return;
+      }
+      
+      // Afficher le résultat
+      const isPassed = data.passed;
+      const completionMsg = document.getElementById('completion-message');
+      
+      completionMsg.innerHTML = `
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full ${isPassed ? 'bg-green-100' : 'bg-rose-100'} mb-4">
+          <i data-lucide="${isPassed ? 'check-circle' : 'x-circle'}" class="h-8 w-8 ${isPassed ? 'text-green-600' : 'text-rose-600'}"></i>
+        </div>
+        <h3 class="text-2xl font-bold text-slate-900 mb-2">
+          ${isPassed ? 'Quiz réussi ! 🎉' : 'Quiz non validé'}
+        </h3>
+        <p class="text-slate-600 mb-4">
+          Tu as obtenu <span class="font-bold text-sky-600">${data.score_pct}%</span>
+        </p>
+        <div class="text-sm text-slate-500 mb-6">
+          ${data.correct} bonne${data.correct > 1 ? 's' : ''} réponse${data.correct > 1 ? 's' : ''} sur ${data.total} • Seuil de réussite : ${data.seuil}%
+        </div>
+        <div class="flex gap-3 justify-center">
+          <a href="{% url 'knowledge_detail' item.id %}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-300 bg-white text-slate-900 font-semibold hover:bg-slate-50 transition">
+            <i data-lucide="arrow-left" class="h-4 w-4"></i>
+            Retour à la connaissance
+          </a>
+          ${!isPassed ? `<button onclick="location.reload()" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 text-white font-semibold shadow-md hover:bg-sky-500 transition">
+            <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+            Réessayer
+          </button>` : ''}
+        </div>
+      `;
+      
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+      
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Une erreur est survenue lors de la soumission.');
+    }
+  }
+  
+  // Initialiser les événements pour chaque question
+  blocks.forEach((block, index) => {
+    const prevBtn = block.querySelector('.prev-btn');
+    const nextBtn = block.querySelector('.next-btn');
+    
+    // Bouton précédent
+    prevBtn.addEventListener('click', () => {
+      if (index > 0) {
+        showQuestion(index - 1);
+      }
+    });
+    
+    // Bouton suivant
+    nextBtn.addEventListener('click', () => {
+      if (index === state.totalQuestions - 1) {
+        // Dernière question : soumettre
+        submitQuiz();
+      } else {
+        // Passer à la question suivante
+        showQuestion(index + 1);
+      }
+    });
+    
+    // Événements sur les choix
+    block.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.addEventListener('click', handleChoiceClick);
+    });
+  });
+  
+  // Initialiser l'affichage
+  showQuestion(0);
+  
+})();
+</script>
+
+{% endblock %}

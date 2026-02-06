@@ -1,0 +1,526 @@
+{% extends "_layouts/app.html" %}
+
+{% block title %}Éditer le quiz - {{ knowledge_item.title }}{% endblock %}
+
+{% block content %}
+<style>
+  .question-card {
+    transition: all 0.3s ease;
+  }
+  
+  .question-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  .choice-item {
+    transition: all 0.2s ease;
+  }
+  
+  .choice-item:hover {
+    background: #f8fafc;
+  }
+  
+  .draggable {
+    cursor: move;
+  }
+  
+  .correct-badge {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  .add-question-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    transition: all 0.3s ease;
+  }
+  
+  .add-question-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(59, 130, 246, 0.3);
+  }
+</style>
+
+<div class="max-w-6xl mx-auto space-y-6 py-8 px-4">
+  
+  <!-- En-tête -->
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-3 text-sm text-slate-500 mb-2">
+          <a href="{% url 'knowledge_detail' knowledge_item.id %}" class="hover:text-sky-600 transition">
+            <i data-lucide="arrow-left" class="h-4 w-4 inline"></i>
+            Retour à la connaissance
+          </a>
+          <span>•</span>
+          <span>Édition du quiz</span>
+        </div>
+        <h1 class="text-3xl font-bold text-slate-900">{{ quiz.titre }}</h1>
+        <p class="mt-2 text-slate-600">Modifie les questions, réponses et paramètres du quiz</p>
+      </div>
+      
+      <div class="flex gap-3">
+        <a href="{% url 'knowledge_quiz_take' knowledge_item.id %}" 
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 font-semibold hover:bg-slate-50 transition">
+          <i data-lucide="play-circle" class="h-4 w-4"></i>
+          Prévisualiser
+        </a>
+        <button type="button" 
+                onclick="saveQuiz()"
+                class="inline-flex items-center gap-2 px-6 py-2 rounded-xl bg-sky-600 text-white font-semibold shadow-md hover:bg-sky-500 transition">
+          <i data-lucide="save" class="h-4 w-4"></i>
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    
+    <!-- Colonne principale : Questions -->
+    <div class="lg:col-span-2 space-y-6">
+      
+      <!-- Liste des questions -->
+      <div id="questions-container" class="space-y-4">
+        {% for question in quiz.questions.all %}
+        <div class="question-card rounded-2xl border-2 border-slate-200 bg-white p-6 shadow-sm" 
+             data-question-id="{{ question.id }}">
+          
+          <!-- En-tête de la question -->
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3 flex-1">
+              <div class="draggable flex-shrink-0 w-10 h-10 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                {{ forloop.counter }}
+              </div>
+              <div class="flex-1">
+                <input type="text" 
+                       class="question-enonce w-full text-lg font-semibold text-slate-900 border-0 border-b-2 border-transparent focus:border-sky-500 focus:outline-none px-2 py-1"
+                       value="{{ question.enonce }}"
+                       placeholder="Énoncé de la question">
+              </div>
+            </div>
+            
+            <div class="flex gap-2">
+              <button type="button" 
+                      onclick="addChoice({{ question.id }})"
+                      class="p-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition"
+                      title="Ajouter un choix">
+                <i data-lucide="plus" class="h-4 w-4"></i>
+              </button>
+              <button type="button" 
+                      onclick="deleteQuestion({{ question.id }})"
+                      class="p-2 rounded-lg border border-rose-300 bg-white text-rose-600 hover:bg-rose-50 transition"
+                      title="Supprimer la question">
+                <i data-lucide="trash-2" class="h-4 w-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Choix de réponses -->
+          <div class="space-y-2" data-choices-container="{{ question.id }}">
+            {% for choice in question.choices.all %}
+            <div class="choice-item flex items-center gap-3 p-3 rounded-xl border border-slate-200" 
+                 data-choice-id="{{ choice.id }}">
+              
+              <!-- Radio pour marquer comme correcte -->
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" 
+                       name="correct_{{ question.id }}" 
+                       value="{{ choice.id }}"
+                       {% if choice.is_correct %}checked{% endif %}
+                       class="w-5 h-5 text-green-600 focus:ring-green-500"
+                       onchange="markAsCorrect({{ question.id }}, {{ choice.id }})">
+                <span class="text-xs font-semibold text-slate-500">
+                  {% if choice.is_correct %}
+                    <span class="correct-badge inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700">
+                      <i data-lucide="check-circle" class="h-3 w-3"></i>
+                      Correcte
+                    </span>
+                  {% else %}
+                    Marquer comme correcte
+                  {% endif %}
+                </span>
+              </label>
+
+              <!-- Input texte du choix -->
+              <input type="text" 
+                     class="choice-text flex-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:outline-none"
+                     value="{{ choice.texte }}"
+                     placeholder="Texte du choix">
+
+              <!-- Bouton supprimer -->
+              <button type="button" 
+                      onclick="deleteChoice({{ choice.id }})"
+                      class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                <i data-lucide="x" class="h-4 w-4"></i>
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Bouton ajouter un choix (alternatif) -->
+          <button type="button" 
+                  onclick="addChoice({{ question.id }})"
+                  class="mt-3 w-full px-4 py-2 rounded-lg border-2 border-dashed border-slate-300 text-slate-600 font-medium hover:border-sky-400 hover:text-sky-600 transition">
+            <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+            Ajouter un choix
+          </button>
+        </div>
+        {% empty %}
+        <div class="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+          <i data-lucide="message-circle" class="h-16 w-16 mx-auto text-slate-400 mb-4"></i>
+          <p class="text-slate-600 mb-4">Aucune question dans ce quiz</p>
+          <button type="button" 
+                  onclick="addQuestion()"
+                  class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 text-white font-semibold shadow-md hover:bg-sky-500 transition">
+            <i data-lucide="plus" class="h-5 w-5"></i>
+            Créer la première question
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Bouton ajouter une question -->
+      <button type="button" 
+              onclick="addQuestion()"
+              class="add-question-btn w-full px-6 py-4 rounded-2xl text-white font-bold shadow-lg">
+        <i data-lucide="plus-circle" class="h-5 w-5 inline mr-2"></i>
+        Ajouter une nouvelle question
+      </button>
+    </div>
+
+    <!-- Sidebar : Paramètres -->
+    <aside class="space-y-6">
+      
+      <!-- Paramètres du quiz -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i data-lucide="settings" class="h-5 w-5 text-slate-600"></i>
+          Paramètres
+        </h3>
+        
+        <div class="space-y-4">
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">Titre du quiz</span>
+            <input type="text" 
+                   id="quiz-titre"
+                   class="mt-2 w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:outline-none"
+                   value="{{ quiz.titre }}">
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-semibold text-slate-700">Seuil de réussite (%)</span>
+            <input type="number" 
+                   id="quiz-seuil"
+                   min="0" 
+                   max="100" 
+                   class="mt-2 w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:outline-none"
+                   value="{{ quiz.seuil_reussite_pct }}">
+            <p class="mt-1 text-xs text-slate-500">Pourcentage minimum pour valider le quiz</p>
+          </label>
+        </div>
+      </div>
+
+      <!-- Statistiques -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i data-lucide="bar-chart" class="h-5 w-5 text-slate-600"></i>
+          Statistiques
+        </h3>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-600">Questions totales</span>
+            <span class="font-bold text-slate-900" id="stat-questions">{{ quiz.questions.count }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-600">Choix totaux</span>
+            <span class="font-bold text-slate-900" id="stat-choices">
+              {% for q in quiz.questions.all %}{{ q.choices.count }}{% if not forloop.last %}+{% endif %}{% endfor %}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-600">Temps estimé</span>
+            <span class="font-bold text-slate-900">{{ quiz.questions.count|add:"0" }} min</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions rapides -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i data-lucide="zap" class="h-5 w-5 text-slate-600"></i>
+          Actions
+        </h3>
+        
+        <div class="space-y-2">
+          <button type="button" 
+                  onclick="regenerateQuiz()"
+                  class="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 font-medium hover:bg-slate-50 transition text-left">
+            <i data-lucide="refresh-cw" class="h-4 w-4 inline mr-2"></i>
+            Régénérer automatiquement
+          </button>
+          
+          <button type="button" 
+                  onclick="duplicateQuiz()"
+                  class="w-full px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 font-medium hover:bg-slate-50 transition text-left">
+            <i data-lucide="copy" class="h-4 w-4 inline mr-2"></i>
+            Dupliquer le quiz
+          </button>
+          
+          <button type="button" 
+                  onclick="if(confirm('Êtes-vous sûr de vouloir supprimer ce quiz ?')) deleteQuiz()"
+                  class="w-full px-4 py-2 rounded-lg border border-rose-300 bg-white text-rose-600 font-medium hover:bg-rose-50 transition text-left">
+            <i data-lucide="trash-2" class="h-4 w-4 inline mr-2"></i>
+            Supprimer le quiz
+          </button>
+        </div>
+      </div>
+
+      <!-- Aide -->
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+        <h3 class="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+          <i data-lucide="lightbulb" class="h-4 w-4"></i>
+          Conseils
+        </h3>
+        <ul class="space-y-2 text-xs text-amber-800">
+          <li class="flex items-start gap-2">
+            <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+            <span>Une seule réponse correcte par question</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+            <span>4 choix recommandés par question</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+            <span>Énoncés clairs et précis</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+            <span>Distracteurs plausibles</span>
+          </li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  const csrfToken = getCookie('csrftoken');
+  const quizId = {{ quiz.id }};
+  const knowledgeId = {{ knowledge_item.id }};
+
+  // Ajouter une question
+  window.addQuestion = function() {
+    fetch(`/api/quiz/${quizId}/questions/add/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible d\'ajouter la question'));
+      }
+    });
+  };
+
+  // Supprimer une question
+  window.deleteQuestion = function(questionId) {
+    if (!confirm('Supprimer cette question ?')) return;
+    
+    fetch(`/api/quiz/questions/${questionId}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible de supprimer'));
+      }
+    });
+  };
+
+  // Ajouter un choix
+  window.addChoice = function(questionId) {
+    fetch(`/api/quiz/questions/${questionId}/choices/add/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible d\'ajouter le choix'));
+      }
+    });
+  };
+
+  // Supprimer un choix
+  window.deleteChoice = function(choiceId) {
+    fetch(`/api/quiz/choices/${choiceId}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible de supprimer'));
+      }
+    });
+  };
+
+  // Marquer un choix comme correct
+  window.markAsCorrect = function(questionId, choiceId) {
+    fetch(`/api/quiz/choices/${choiceId}/mark-correct/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ question_id: questionId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Optionnel: mise à jour visuelle sans rechargement
+        console.log('Choix marqué comme correct');
+      }
+    });
+  };
+
+  // Sauvegarder le quiz
+  window.saveQuiz = function() {
+    const titre = document.getElementById('quiz-titre').value;
+    const seuil = document.getElementById('quiz-seuil').value;
+    
+    // Collecter toutes les questions et choix
+    const questions = [];
+    document.querySelectorAll('.question-card').forEach((card, index) => {
+      const questionId = card.getAttribute('data-question-id');
+      const enonce = card.querySelector('.question-enonce').value;
+      
+      const choices = [];
+      card.querySelectorAll('.choice-item').forEach(choiceEl => {
+        const choiceId = choiceEl.getAttribute('data-choice-id');
+        const texte = choiceEl.querySelector('.choice-text').value;
+        const radio = choiceEl.querySelector('input[type="radio"]');
+        const isCorrect = radio ? radio.checked : false;
+        
+        choices.push({ id: choiceId, texte, is_correct: isCorrect });
+      });
+      
+      questions.push({
+        id: questionId,
+        enonce,
+        ordre: index + 1,
+        choices
+      });
+    });
+    
+    // Envoyer au serveur
+    fetch(`/api/quiz/${quizId}/save/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ titre, seuil, questions })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Animation de succès
+        const btn = event.target;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" class="h-4 w-4 inline mr-2"></i> Enregistré !';
+        btn.classList.remove('bg-sky-600');
+        btn.classList.add('bg-green-600');
+        if (window.lucide) window.lucide.createIcons();
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('bg-green-600');
+          btn.classList.add('bg-sky-600');
+          if (window.lucide) window.lucide.createIcons();
+        }, 2000);
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible d\'enregistrer'));
+      }
+    });
+  };
+
+  // Régénérer le quiz
+  window.regenerateQuiz = function() {
+    if (!confirm('Régénérer le quiz ? Les questions actuelles seront remplacées.')) return;
+    
+    fetch(`/generate-quiz/${knowledgeId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + (data.error || 'génération impossible'));
+      }
+    });
+  };
+
+  // Supprimer le quiz
+  window.deleteQuiz = function() {
+    fetch(`/api/quiz/${quizId}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.location.href = `/connaissances/${knowledgeId}/`;
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible de supprimer'));
+      }
+    });
+  };
+
+  // Dupliquer le quiz
+  window.duplicateQuiz = function() {
+    alert('Fonctionnalité de duplication à implémenter (optionnel)');
+  };
+
+  // Initialiser Lucide icons
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
+})();
+</script>
+
+{% endblock %}

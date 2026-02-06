@@ -3,7 +3,25 @@
 {% block title %}Modifier — {{ item.title }}{% endblock %}
 
 {% block content %}
+<style>
+  .preview-content {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .diff-added {
+    background: #dcfce7;
+    border-left: 3px solid #10b981;
+  }
+  
+  .diff-removed {
+    background: #fee2e2;
+    border-left: 3px solid #ef4444;
+  }
+</style>
+
   <div class="grid gap-6">
+    <!-- En-tête -->
     <section class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <a class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" href="{% url 'knowledge_detail' item.id %}">
@@ -13,46 +31,326 @@
         <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Nouvelle version</h1>
         <p class="mt-1 text-sm text-slate-600">Les modifications créent une nouvelle version dans l'historique.</p>
       </div>
+      
+      <div class="flex gap-2">
+        <button type="button" 
+                onclick="document.getElementById('preview-modal').showModal()"
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition">
+          <i data-lucide="eye" class="h-4 w-4"></i>
+          Prévisualiser
+        </button>
+      </div>
     </section>
 
-    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <form method="post" class="space-y-5">
-        {% csrf_token %}
+    <div class="grid gap-6 lg:grid-cols-3">
+      
+      <!-- Formulaire principal -->
+      <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+        <form method="post" class="space-y-5">
+          {% csrf_token %}
 
-        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <i data-lucide="heading" class="h-4 w-4 text-slate-500"></i>
+                Titre
+              </div>
+              <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" 
+                     name="title" 
+                     value="{{ item.title }}" 
+                     required />
+            </label>
+            
+            <label class="block">
+              <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <i data-lucide="git-branch" class="h-4 w-4 text-slate-500"></i>
+                Numéro de version
+              </div>
+              <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" 
+                     name="numero_version" 
+                     placeholder="Ex: 1.1, 2024, v2" 
+                     value="{{ current_version.numero_version|default:item.numero_version }}" />
+              <p class="mt-1 text-xs text-slate-500">Incrémenter pour chaque modification</p>
+            </label>
+          </div>
+
           <label class="block">
-            <div class="text-sm font-semibold text-slate-900">Titre</div>
-            <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" name="title" value="{{ item.title }}" required />
+            <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i>
+              Description courte
+            </div>
+            <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" 
+                   name="description" 
+                   value="{{ item.description }}" 
+                   maxlength="500" 
+                   placeholder="Résumé en une phrase" />
+            <p class="mt-1 text-xs text-slate-500">Maximum 500 caractères</p>
           </label>
+
           <label class="block">
-            <div class="text-sm font-semibold text-slate-900">Numéro de version</div>
-            <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" name="numero_version" placeholder="Ex: 1.1, 2024, v2" value="{{ current_version.numero_version|default:item.numero_version }}" />
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <i data-lucide="align-left" class="h-4 w-4 text-slate-500"></i>
+                Contenu
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-500">
+                <span id="char-count">0</span> caractères
+                <span>•</span>
+                <span id="word-count">0</span> mots
+                <span>•</span>
+                <span id="read-time">0</span> min lecture
+              </div>
+            </div>
+            <textarea id="content-textarea"
+                      class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono" 
+                      rows="18" 
+                      name="content" 
+                      required>{{ item.content }}</textarea>
+            <p class="mt-2 text-xs text-slate-500">
+              💡 Utilise des titres (#, ##), listes (-, *), et sauts de ligne pour structurer ton contenu
+            </p>
           </label>
+
+          <label class="block">
+            <div class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <i data-lucide="message-square" class="h-4 w-4 text-slate-500"></i>
+              Note de modification (optionnel)
+            </div>
+            <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" 
+                   name="note_modification" 
+                   maxlength="500" 
+                   placeholder="Ex: Mise à jour procédure 2024, Correction erreurs, Ajout section FAQ..." />
+            <p class="mt-1 text-xs text-slate-500">Aide les autres à comprendre ce qui a changé</p>
+          </label>
+
+          <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
+            <a class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50" 
+               href="{% url 'knowledge_detail' item.id %}">
+              <i data-lucide="x" class="h-4 w-4"></i>
+              Annuler
+            </a>
+            <button type="submit" 
+                    class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-2 text-sm font-semibold text-white shadow-lg hover:bg-sky-500 transition">
+              <i data-lucide="save" class="h-4 w-4"></i>
+              Enregistrer la nouvelle version
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Sidebar : Informations et conseils -->
+      <aside class="space-y-6">
+        
+        <!-- Informations version actuelle -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="info" class="h-5 w-5 text-slate-600"></i>
+            Version actuelle
+          </h3>
+          
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-600">Numéro</span>
+              <span class="font-semibold text-slate-900">{{ current_version.numero_version|default:item.numero_version }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Modifié le</span>
+              <span class="font-medium text-slate-900">{{ item.updated_at|date:"d/m/Y" }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Auteur</span>
+              <span class="font-medium text-slate-900">{{ item.get_display_author }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Statut</span>
+              {% if item.status == "published" %}
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Publié</span>
+              {% elif item.status == "in_review" %}
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">En validation</span>
+              {% else %}
+                <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">Brouillon</span>
+              {% endif %}
+            </div>
+          </div>
         </div>
 
-        <label class="block">
-          <div class="text-sm font-semibold text-slate-900">Description courte</div>
-          <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" name="description" value="{{ item.description }}" maxlength="500" placeholder="Résumé en une phrase" />
-        </label>
-
-        <label class="block">
-          <div class="text-sm font-semibold text-slate-900">Contenu</div>
-          <textarea class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" rows="14" name="content" required>{{ item.content }}</textarea>
-        </label>
-
-        <label class="block">
-          <div class="text-sm font-semibold text-slate-900">Note de modification (optionnel)</div>
-          <input class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" name="note_modification" maxlength="500" placeholder="Ex: Mise à jour procédure 2024" />
-        </label>
-
-        <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
-          <a class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50" href="{% url 'knowledge_detail' item.id %}">Annuler</a>
-          <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500">
-            <i data-lucide="save" class="h-4 w-4"></i>
-            Enregistrer la nouvelle version
-          </button>
+        <!-- Historique des versions -->
+        {% if item.versions.all %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="history" class="h-5 w-5 text-slate-600"></i>
+            Versions précédentes
+          </h3>
+          
+          <div class="space-y-2 max-h-60 overflow-y-auto">
+            {% for v in item.versions.all|slice:":5" %}
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm {% if v.est_actuelle %}bg-sky-50 ring-1 ring-sky-200{% endif %}">
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-slate-800 truncate">
+                  v{{ v.numero_version }}
+                  {% if v.est_actuelle %}<span class="text-sky-600 text-xs">(actuelle)</span>{% endif %}
+                </div>
+                <div class="text-xs text-slate-500">{{ v.date_creation|date:"d/m/Y" }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
-      </form>
-    </section>
+        {% endif %}
+
+        <!-- Conseils de rédaction -->
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <h3 class="text-sm font-bold text-amber-900 mb-3 flex items-center gap-2">
+            <i data-lucide="lightbulb" class="h-4 w-4"></i>
+            Bonnes pratiques
+          </h3>
+          <ul class="space-y-2 text-xs text-amber-800">
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+              <span>Incrémenter le numéro de version (1.0 → 1.1 → 2.0)</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+              <span>Ajouter une note de modification claire</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+              <span>Structurer avec des titres et listes</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+              <span>Prévisualiser avant d'enregistrer</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="h-3 w-3 mt-0.5 flex-shrink-0"></i>
+              <span>Garder les versions majeures tracées</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <i data-lucide="zap" class="h-4 w-4 text-slate-600"></i>
+            Actions rapides
+          </h3>
+          <div class="space-y-2">
+            <a href="{% url 'knowledge_detail' item.id %}" 
+               class="w-full inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm font-medium hover:bg-slate-50 transition">
+              <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+              Voir la version publiée
+            </a>
+            <a href="{% url 'knowledge_duplicate' item.id %}" 
+               class="w-full inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm font-medium hover:bg-slate-50 transition">
+              <i data-lucide="copy" class="h-3.5 w-3.5"></i>
+              Dupliquer ce contenu
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
   </div>
+
+  <!-- Modal de prévisualisation -->
+  <dialog id="preview-modal" class="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-slate-900">Prévisualisation</h3>
+        <form method="dialog">
+          <button class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition" 
+                  aria-label="Fermer">
+            <i data-lucide="x" class="h-4 w-4"></i>
+          </button>
+        </form>
+      </div>
+      
+      <div class="preview-content rounded-2xl border border-slate-200 bg-slate-50 p-6">
+        <div id="preview-title" class="text-2xl font-bold text-slate-900 mb-2"></div>
+        <div id="preview-description" class="text-slate-600 mb-4"></div>
+        <div class="border-t border-slate-200 pt-4">
+          <div id="preview-content-html" class="prose prose-slate max-w-none"></div>
+        </div>
+      </div>
+      
+      <div class="mt-4 flex justify-end">
+        <form method="dialog">
+          <button class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-2 text-sm font-semibold text-white hover:bg-sky-500 transition">
+            OK
+          </button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+  (function() {
+    'use strict';
+    
+    const textarea = document.getElementById('content-textarea');
+    const charCount = document.getElementById('char-count');
+    const wordCount = document.getElementById('word-count');
+    const readTime = document.getElementById('read-time');
+    
+    // Mise à jour des compteurs
+    function updateCounts() {
+      const text = textarea.value;
+      const chars = text.length;
+      const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+      const minutes = Math.max(1, Math.ceil(words / 200));
+      
+      charCount.textContent = chars;
+      wordCount.textContent = words;
+      readTime.textContent = minutes;
+    }
+    
+    // Initialiser les compteurs
+    updateCounts();
+    textarea.addEventListener('input', updateCounts);
+    
+    // Prévisualisation
+    const previewModal = document.getElementById('preview-modal');
+    const previewTitle = document.getElementById('preview-title');
+    const previewDescription = document.getElementById('preview-description');
+    const previewContentHtml = document.getElementById('preview-content-html');
+    
+    previewModal.addEventListener('show', function() {
+      const title = document.querySelector('input[name="title"]').value;
+      const description = document.querySelector('input[name="description"]').value;
+      const content = textarea.value;
+      
+      previewTitle.textContent = title || 'Sans titre';
+      previewDescription.textContent = description || 'Pas de description';
+      
+      // Convertir le contenu en HTML basique (linebreaks)
+      const contentHtml = content
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line)
+        .map(line => `<p>${line}</p>`)
+        .join('');
+      
+      previewContentHtml.innerHTML = contentHtml || '<p class="text-slate-500 italic">Pas de contenu</p>';
+    });
+    
+    // Raccourcis clavier
+    document.addEventListener('keydown', function(e) {
+      // Ctrl+S / Cmd+S pour sauvegarder
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.querySelector('form').submit();
+      }
+      
+      // Ctrl+P / Cmd+P pour prévisualiser
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        previewModal.showModal();
+      }
+    });
+    
+    // Initialiser Lucide icons
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  })();
+  </script>
 {% endblock %}

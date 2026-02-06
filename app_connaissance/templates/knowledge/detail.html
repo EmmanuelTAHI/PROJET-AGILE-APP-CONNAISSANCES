@@ -3,7 +3,109 @@
 {% block title %}{{ item.title }}{% endblock %}
 
 {% block content %}
+<style>
+  /* Styles pour le contenu formaté */
+  .knowledge-content {
+    line-height: 1.8;
+  }
+  
+  .knowledge-content h1,
+  .knowledge-content h2,
+  .knowledge-content h3 {
+    font-weight: 700;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #0f172a;
+  }
+  
+  .knowledge-content h1 {
+    font-size: 1.875rem;
+    border-bottom: 3px solid #3b82f6;
+    padding-bottom: 0.5rem;
+  }
+  
+  .knowledge-content h2 {
+    font-size: 1.5rem;
+    color: #1e40af;
+  }
+  
+  .knowledge-content h3 {
+    font-size: 1.25rem;
+    color: #334155;
+  }
+  
+  .knowledge-content p {
+    margin-bottom: 1rem;
+    color: #334155;
+  }
+  
+  .knowledge-content ul,
+  .knowledge-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .knowledge-content li {
+    margin-bottom: 0.5rem;
+    color: #475569;
+  }
+  
+  .knowledge-content ul li {
+    list-style-type: disc;
+  }
+  
+  .knowledge-content ol li {
+    list-style-type: decimal;
+  }
+  
+  .knowledge-content strong {
+    font-weight: 600;
+    color: #0f172a;
+  }
+  
+  .knowledge-content em {
+    font-style: italic;
+  }
+  
+  .knowledge-content code {
+    background: #f1f5f9;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: #dc2626;
+  }
+  
+  .knowledge-content pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+  }
+  
+  .knowledge-content blockquote {
+    border-left: 4px solid #3b82f6;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: #64748b;
+  }
+  
+  .quiz-cta {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    transition: all 0.3s ease;
+  }
+  
+  .quiz-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+  }
+</style>
+
   <div class="grid gap-6">
+    <!-- En-tête de la connaissance -->
     <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
@@ -11,11 +113,14 @@
             <i data-lucide="arrow-left" class="h-4 w-4"></i>
             Retour à la base
           </a>
+          
+          <!-- Badges et métadonnées -->
           <div class="mt-3 flex flex-wrap items-center gap-2">
             <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">{{ item.kind.name }}</span>
             {% if item.department %}
               <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700">{{ item.department.name }}</span>
             {% endif %}
+            
             {% if item.status == "published" %}
               <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Publié</span>
             {% elif item.status == "in_review" %}
@@ -25,27 +130,74 @@
             {% else %}
               <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">Brouillon</span>
             {% endif %}
+            
             <span class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">Version {{ display_numero }}</span>
           </div>
+          
+          <!-- Titre et description -->
           <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ item.title }}</h1>
           {% if item.description %}
-            <p class="mt-2 text-slate-600">{{ item.description }}</p>
+            <p class="mt-2 text-lg text-slate-600">{{ item.description }}</p>
           {% endif %}
+          
+          <!-- Informations contextuelles -->
           <div class="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-600">
-            <span class="flex items-center gap-1.5"><i data-lucide="user" class="h-4 w-4"></i> {{ display_author }}</span>
-            <span class="flex items-center gap-1.5"><i data-lucide="building-2" class="h-4 w-4"></i> {% if item.department %}{{ item.department.name }}{% else %}—{% endif %}</span>
-            <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="h-4 w-4"></i> {{ display_date|date:"d/m/Y" }}</span>
-            <span class="flex items-center gap-1.5"><i data-lucide="clock" class="h-4 w-4"></i> {{ item.read_time_min }} min</span>
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="user" class="h-4 w-4"></i>
+              {{ display_author }}
+            </span>
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="building-2" class="h-4 w-4"></i>
+              {% if item.department %}{{ item.department.name }}{% else %}—{% endif %}
+            </span>
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="calendar" class="h-4 w-4"></i>
+              {{ display_date|date:"d/m/Y" }}
+            </span>
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="clock" class="h-4 w-4"></i>
+              {{ item.read_time_min }} min de lecture
+            </span>
           </div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            {% for t in item.tags.all %}
-              <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">#{{ t.name }}</span>
-            {% endfor %}
-            {% for c in item.competences.all %}
-              <span class="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">{{ c.name }}</span>
-            {% endfor %}
+          
+          <!-- Tags et compétences -->
+          <div class="mt-4 space-y-3">
+            {% if item.tags.all %}
+            <div>
+              <div class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-2">
+                <i data-lucide="tag" class="h-3 w-3"></i>
+                Tags
+              </div>
+              <div class="flex flex-wrap gap-2">
+                {% for t in item.tags.all %}
+                  <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
+                    <i data-lucide="hash" class="h-3 w-3"></i>
+                    {{ t.name }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            
+            {% if item.competences.all %}
+            <div>
+              <div class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-2">
+                <i data-lucide="award" class="h-3 w-3"></i>
+                Compétences associées
+              </div>
+              <div class="flex flex-wrap gap-2">
+                {% for c in item.competences.all %}
+                  <span class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:from-indigo-100 hover:to-purple-100 transition shadow-sm">
+                    <i data-lucide="star" class="h-3 w-3"></i>
+                    {{ c.name }}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
           </div>
 
+          <!-- Sélecteur de versions -->
           {% if versions|length > 1 %}
             <div class="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -67,6 +219,7 @@
           {% endif %}
         </div>
 
+        <!-- Actions -->
         <div class="flex flex-wrap gap-2">
           {% if frontend.role == "manager" or frontend.role == "admin" or item.author_user_id == user.id %}
             <a class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50" href="{% url 'knowledge_edit' item.id %}">
@@ -78,7 +231,7 @@
               Dupliquer
             </a>
           {% endif %}
-          <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50" onclick="navigator.clipboard?.writeText(window.location.href)">
+          <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50" onclick="navigator.clipboard?.writeText(window.location.href); alert('Lien copié !');">
             <i data-lucide="link" class="h-4 w-4"></i>
             Copier le lien
           </button>
@@ -86,11 +239,21 @@
       </div>
     </section>
 
+    <!-- Contenu principal et sidebar -->
     <section class="grid gap-6 lg:grid-cols-3">
-      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-        <h2 class="text-lg font-bold text-slate-900">Contenu</h2>
+      
+      <!-- Contenu de la connaissance -->
+      <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-slate-900">Contenu de la connaissance</h2>
+          {% if item.read_time_min %}
+          <span class="text-sm text-slate-500">📖 {{ item.read_time_min }} min</span>
+          {% endif %}
+        </div>
+        
+        <!-- Message de rejet si applicable -->
         {% if item.rejection_comment and item.status == "rejected" %}
-          <div class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+          <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <div class="flex items-center gap-2 text-sm font-semibold text-rose-800">
               <i data-lucide="message-circle" class="h-4 w-4"></i>
               Commentaire du validateur
@@ -98,40 +261,138 @@
             <p class="mt-2 text-sm leading-relaxed text-rose-900">{{ item.rejection_comment }}</p>
           </div>
         {% endif %}
-        <div class="knowledge-content mt-4 space-y-4 text-slate-800 prose prose-slate max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-p:leading-relaxed prose-ul:my-2 prose-ol:my-2">
+        
+        <!-- Contenu formaté -->
+        <div class="knowledge-content">
           {% if display_content %}
-            {{ display_content|safe }}
+            {{ display_content|linebreaks }}
           {% else %}
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-600">Contenu non renseigné.</div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+              <i data-lucide="file-text" class="h-12 w-12 mx-auto mb-3 text-slate-400"></i>
+              <p>Contenu non renseigné pour cette version.</p>
+            </div>
           {% endif %}
         </div>
       </div>
 
+      <!-- Sidebar -->
       <aside class="space-y-6">
+        
+        <!-- Quiz associé - Call to Action -->
+        {% if item.quiz %}
+        <div class="rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-blue-50 p-6 shadow-md">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-sky-500 flex items-center justify-center">
+              <i data-lucide="brain" class="h-6 w-6 text-white"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Quiz d'évaluation</h3>
+              <p class="text-xs text-slate-600">Teste tes connaissances</p>
+            </div>
+          </div>
+          
+          <p class="text-sm text-slate-700 mb-4">
+            Un quiz de <strong>{{ item.quiz.questions.count }}</strong> question{{ item.quiz.questions.count|pluralize }} est disponible pour valider ta compréhension de ce contenu.
+          </p>
+          
+          <div class="space-y-2 text-xs text-slate-600 mb-4">
+            <div class="flex items-center gap-2">
+              <i data-lucide="check" class="h-4 w-4 text-green-600"></i>
+              <span>Feedback immédiat après chaque réponse</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="check" class="h-4 w-4 text-green-600"></i>
+              <span>Seuil de réussite : {{ item.quiz.seuil_reussite_pct }}%</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="check" class="h-4 w-4 text-green-600"></i>
+              <span>Progression sauvegardée automatiquement</span>
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <a href="{% url 'knowledge_quiz_take' item.id %}" 
+               class="quiz-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-white font-bold shadow-lg">
+              <i data-lucide="play-circle" class="h-5 w-5"></i>
+              Commencer le quiz
+            </a>
+            
+            {% if frontend.role == "manager" or frontend.role == "admin" or item.author_user_id == user.id %}
+            <a href="{% url 'knowledge_quiz_edit' item.id %}" 
+               class="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-sky-300 bg-white px-4 py-3 text-sky-700 font-semibold hover:bg-sky-50 transition"
+               title="Éditer le quiz">
+              <i data-lucide="pencil" class="h-5 w-5"></i>
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <!-- Pas de quiz disponible -->
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-lg font-bold text-slate-900">Historique des versions</h3>
-          <ul class="mt-4 space-y-2">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+              <i data-lucide="file-question" class="h-6 w-6 text-slate-400"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Quiz</h3>
+              <p class="text-xs text-slate-500">Non disponible</p>
+            </div>
+          </div>
+          <p class="text-sm text-slate-600">
+            Aucun quiz n'est associé à cette connaissance pour le moment.
+          </p>
+        </div>
+        {% endif %}
+        
+        <!-- Historique des versions -->
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="history" class="h-5 w-5 text-slate-600"></i>
+            Historique
+          </h3>
+          <ul class="space-y-2">
             {% for v in versions %}
-              <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm {% if selected_version and selected_version.id == v.id %}bg-sky-50 ring-1 ring-sky-200{% endif %}">
+              <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm transition hover:bg-slate-50 {% if selected_version and selected_version.id == v.id %}bg-sky-50 ring-1 ring-sky-200{% endif %}">
                 <a href="{% url 'knowledge_detail' item.id %}?version={{ v.id }}" class="font-medium text-slate-800 hover:text-sky-600">
-                  Version {{ v.numero_version }}{% if v.est_actuelle %} <span class="text-sky-600">(actuelle)</span>{% endif %}
+                  v{{ v.numero_version }}{% if v.est_actuelle %} <span class="text-sky-600">(actuelle)</span>{% endif %}
                 </a>
-                <span class="text-slate-500">{{ v.date_creation|date:"d/m/Y" }}</span>
+                <span class="text-slate-500 text-xs">{{ v.date_creation|date:"d/m/Y" }}</span>
               </li>
             {% empty %}
-              <li class="text-sm text-slate-500">Aucune version enregistrée.</li>
+              <li class="text-sm text-slate-500 text-center py-2">Aucune version</li>
             {% endfor %}
           </ul>
         </div>
 
+        <!-- Métadonnées -->
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-lg font-bold text-slate-900">Métadonnées</h3>
-          <div class="mt-4 space-y-2 text-sm text-slate-700">
-            <div class="flex justify-between"><span>Dernière mise à jour</span><span class="font-medium">{{ item.updated_at|date:"d/m/Y H:i" }}</span></div>
-            <div class="flex justify-between"><span>Visibilité</span><span class="font-medium">Interne</span></div>
+          <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="info" class="h-5 w-5 text-slate-600"></i>
+            Métadonnées
+          </h3>
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Créé le</span>
+              <span class="font-medium text-slate-900">{{ item.created_at|date:"d/m/Y" }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Mis à jour</span>
+              <span class="font-medium text-slate-900">{{ item.updated_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            {% if item.published_at %}
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Publié le</span>
+              <span class="font-medium text-slate-900">{{ item.published_at|date:"d/m/Y" }}</span>
+            </div>
+            {% endif %}
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Visibilité</span>
+              <span class="font-medium text-slate-900">Interne</span>
+            </div>
           </div>
         </div>
       </aside>
     </section>
   </div>
+
 {% endblock %}

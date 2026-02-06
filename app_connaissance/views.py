@@ -20,6 +20,9 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from .forms import DepartmentForm, OnboardingStepForm, ProfileEditForm, UserCreateForm
 from .frontend_auth import frontend_login_required, frontend_roles_required
@@ -275,11 +278,15 @@ def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
 @frontend_login_required
 def knowledge_detail(request: HttpRequest, knowledge_id: int) -> HttpResponse:
     item = get_object_or_404(
-        KnowledgeItem.objects.select_related("department", "author_user").prefetch_related(
-            "tags", "competences", "versions"
+        KnowledgeItem.objects
+        .select_related("department", "author_user", "quiz")
+        .prefetch_related(
+            "tags", "competences", "versions",
+            "quiz__questions", "quiz__questions__choices"
         ),
-        pk=knowledge_id,
+        pk=knowledge_id,   # ✅ IMPORTANT (sinon MultipleObjectsReturned)
     )
+
     if not _can_view_knowledge(request, item):
         messages.error(request, "Vous n'avez pas accès à ce contenu.")
         return redirect("knowledge_list")
@@ -292,10 +299,11 @@ def knowledge_detail(request: HttpRequest, knowledge_id: int) -> HttpResponse:
             selected_version = next(v for v in versions if str(v.id) == str(version_id))
         except StopIteration:
             pass
+
     if not selected_version:
         selected_version = item.get_current_version()
+
     if not selected_version:
-        # Aucune version en base : afficher le contenu de l'item (rétrocompat)
         display_content = item.content
         display_date = item.updated_at
         display_numero = item.numero_version
@@ -399,11 +407,14 @@ def knowledge_create(request: HttpRequest) -> HttpResponse:
             item.attachment = request.FILES["file"]
             item.save(update_fields=["attachment"])
 
+        # Générer un quiz pour la connaissance créée
+        item.generate_quiz()
+
         if item.status == KnowledgeItem.Status.IN_REVIEW:
             messages.success(request, "Contenu créé et envoyé en validation.")
         else:
             messages.success(request, "Brouillon créé. Tu pourras l’envoyer en validation plus tard.")
-        return redirect("knowledge_detail", knowledge_id=item.id)
+        return render(request, "knowledge/create.html", {"object": item})
 
     return render(
         request,
@@ -556,6 +567,9 @@ def validation_approve(request: HttpRequest, knowledge_id: int) -> HttpResponse:
             author_name=item.author,
             est_actuelle=True,
         )
+    if not item.quiz_id:
+     item.generate_quiz()
+
     item.status = KnowledgeItem.Status.PUBLISHED
     item.published_at = timezone.now()
     item.save(update_fields=["status", "published_at", "updated_at"])
@@ -1003,3 +1017,365 @@ def profile(request: HttpRequest) -> HttpResponse:
             "roles": ROLES,
         },
     )
+
+
+from django.http import JsonResponse
+
+def extract_knowledge_text(request, knowledge_id):
+    """
+    Vue pour extraire le texte source d'une connaissance.
+    Retourne le texte extrait ou un message d'erreur.
+    """
+    knowledge_item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+    extracted_text = knowledge_item.extract_text()
+    return JsonResponse({"knowledge_id": knowledge_id, "extracted_text": extracted_text})
+
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
+from django.db import transaction
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def generate_quiz(request, knowledge_id):
+    """
+    Génération manuelle depuis le bouton.
+    Sécurisé : auteur / manager / admin seulement.
+    """
+    item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+    if not _can_edit_knowledge(request, item):
+        return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+
+    quiz = item.generate_quiz()
+    if not quiz:
+        return JsonResponse({"success": False, "error": "Impossible de générer un quiz (contenu inexploitable)."}, status=400)
+
+    return JsonResponse({"success": True})
+
+
+@frontend_login_required
+def knowledge_quiz_take(request, knowledge_id: int) -> HttpResponse:
+    """
+    Page du quiz lié à une connaissance (pas un module).
+    IMPORTANT : accessible seulement si connaissance publiée, OU auteur/manager/admin.
+    """
+    item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+
+    if not _can_view_knowledge(request, item):
+        messages.error(request, "Vous n'avez pas accès à ce quiz.")
+        return redirect("knowledge_list")
+
+    if not item.quiz_id:
+        messages.warning(request, "Aucun quiz n'est encore associé à cette connaissance.")
+        return redirect("knowledge_detail", knowledge_id=item.id)
+
+    quiz = (
+        Quiz.objects
+        .prefetch_related("questions", "questions__choices")
+        .get(id=item.quiz_id)
+    )
+
+    # On stocke un dict answers en session pour le quiz (bonne pratique simple)
+    session_key = f"knowledge_quiz_answers_{item.id}"
+    if session_key not in request.session:
+        request.session[session_key] = {}  # question_id -> choice_id
+
+    return render(request, "knowledge/quiz_take.html", {"item": item, "quiz": quiz})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def knowledge_quiz_check_choice(request, knowledge_id: int, question_id: int) -> JsonResponse:
+    """
+    Correction immédiate après chaque clic.
+    Retourne: is_correct, correct_choice_id, correct_choice_text
+    """
+    item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+
+    if not _can_view_knowledge(request, item):
+        return JsonResponse({"ok": False, "error": "Accès refusé."}, status=403)
+
+    if not item.quiz_id:
+        return JsonResponse({"ok": False, "error": "Quiz introuvable."}, status=404)
+
+    choice_id = request.POST.get("choice_id")
+    if not choice_id or not str(choice_id).isdigit():
+        return JsonResponse({"ok": False, "error": "choice_id manquant."}, status=400)
+
+    question = get_object_or_404(QuizQuestion, id=question_id, quiz_id=item.quiz_id)
+    chosen = get_object_or_404(QuizChoice, id=int(choice_id), question=question)
+
+    correct_choice = QuizChoice.objects.filter(question=question, is_correct=True).first()
+    is_correct = bool(chosen.is_correct)
+
+    # Enregistrer la réponse dans la session
+    session_key = f"knowledge_quiz_answers_{item.id}"
+    answers = request.session.get(session_key, {})
+    answers[str(question.id)] = str(chosen.id)
+    request.session[session_key] = answers
+    request.session.modified = True
+
+    return JsonResponse({
+        "ok": True,
+        "is_correct": is_correct,
+        "correct_choice_id": correct_choice.id if correct_choice else None,
+        "correct_choice_text": correct_choice.texte if correct_choice else None,
+    })
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+@transaction.atomic
+def knowledge_quiz_submit(request, knowledge_id: int) -> JsonResponse:
+    """
+    Soumission finale : calcule score, enregistre UserQuizAttempt.
+    """
+    item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+
+    if not _can_view_knowledge(request, item):
+        return JsonResponse({"ok": False, "error": "Accès refusé."}, status=403)
+
+    if not item.quiz_id:
+        return JsonResponse({"ok": False, "error": "Quiz introuvable."}, status=404)
+
+    quiz = Quiz.objects.prefetch_related("questions", "questions__choices").get(id=item.quiz_id)
+
+    session_key = f"knowledge_quiz_answers_{item.id}"
+    answers = request.session.get(session_key, {})  # {question_id: choice_id}
+
+    total = quiz.questions.count()
+    if total == 0:
+        return JsonResponse({"ok": False, "error": "Quiz vide."}, status=400)
+
+    correct = 0
+    for q in quiz.questions.all():
+        chosen_id = answers.get(str(q.id))
+        if chosen_id and QuizChoice.objects.filter(question=q, id=int(chosen_id), is_correct=True).exists():
+            correct += 1
+
+    score_pct = round((correct / total) * 100)
+    passed = score_pct >= quiz.seuil_reussite_pct
+
+    # Enregistrer tentative (unique_together user+quiz déjà chez toi)
+    UserQuizAttempt.objects.update_or_create(
+        user=request.user,
+        quiz=quiz,
+        defaults={"score_pct": score_pct, "passed": passed},
+    )
+
+    # Nettoyer la session
+    if session_key in request.session:
+        del request.session[session_key]
+        request.session.modified = True
+
+    return JsonResponse({
+        "ok": True,
+        "score_pct": score_pct,
+        "passed": passed,
+        "total": total,
+        "correct": correct,
+        "seuil": quiz.seuil_reussite_pct,
+    })
+# À ajouter dans views.py
+
+
+
+@frontend_login_required
+def knowledge_quiz_edit(request: HttpRequest, knowledge_id: int) -> HttpResponse:
+    """Page d'édition du quiz associé à une connaissance."""
+    item = get_object_or_404(KnowledgeItem, id=knowledge_id)
+    
+    if not _can_edit_knowledge(request, item):
+        messages.error(request, "Vous n'avez pas le droit de modifier ce quiz.")
+        return redirect("knowledge_detail", knowledge_id=item.id)
+    
+    if not item.quiz_id:
+        messages.warning(request, "Aucun quiz n'est associé à cette connaissance.")
+        return redirect("knowledge_detail", knowledge_id=item.id)
+    
+    quiz = Quiz.objects.prefetch_related("questions", "questions__choices").get(id=item.quiz_id)
+    
+    return render(request, "knowledge/quiz_edit.html", {
+        "knowledge_item": item,
+        "quiz": quiz,
+    })
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_add_question(request: HttpRequest, quiz_id: int) -> JsonResponse:
+    """Ajouter une nouvelle question à un quiz."""
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    # Créer la question
+    ordre = quiz.questions.count() + 1
+    question = QuizQuestion.objects.create(
+        quiz=quiz,
+        enonce="Nouvelle question",
+        ordre=ordre
+    )
+    
+    # Créer 4 choix par défaut
+    QuizChoice.objects.bulk_create([
+        QuizChoice(question=question, texte="Choix A", is_correct=True),
+        QuizChoice(question=question, texte="Choix B", is_correct=False),
+        QuizChoice(question=question, texte="Choix C", is_correct=False),
+        QuizChoice(question=question, texte="Choix D", is_correct=False),
+    ])
+    
+    return JsonResponse({"success": True, "question_id": question.id})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_delete_question(request: HttpRequest, question_id: int) -> JsonResponse:
+    """Supprimer une question d'un quiz."""
+    question = get_object_or_404(QuizQuestion, id=question_id)
+    quiz = question.quiz
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    question.delete()
+    return JsonResponse({"success": True})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_add_choice(request: HttpRequest, question_id: int) -> JsonResponse:
+    """Ajouter un nouveau choix à une question."""
+    question = get_object_or_404(QuizQuestion, id=question_id)
+    quiz = question.quiz
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    choice = QuizChoice.objects.create(
+        question=question,
+        texte="Nouveau choix",
+        is_correct=False
+    )
+    
+    return JsonResponse({"success": True, "choice_id": choice.id})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_delete_choice(request: HttpRequest, choice_id: int) -> JsonResponse:
+    """Supprimer un choix d'une question."""
+    choice = get_object_or_404(QuizChoice, id=choice_id)
+    question = choice.question
+    quiz = question.quiz
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    # Empêcher de supprimer si c'est le dernier choix
+    if question.choices.count() <= 2:
+        return JsonResponse({"success": False, "error": "Une question doit avoir au moins 2 choix."}, status=400)
+    
+    choice.delete()
+    return JsonResponse({"success": True})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_mark_choice_correct(request: HttpRequest, choice_id: int) -> JsonResponse:
+    """Marquer un choix comme correct (et les autres comme incorrects)."""
+    choice = get_object_or_404(QuizChoice, id=choice_id)
+    question = choice.question
+    quiz = question.quiz
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    # Marquer tous les choix comme incorrects
+    question.choices.update(is_correct=False)
+    
+    # Marquer celui-ci comme correct
+    choice.is_correct = True
+    choice.save()
+    
+    return JsonResponse({"success": True})
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_save(request: HttpRequest, quiz_id: int) -> JsonResponse:
+    """Sauvegarder toutes les modifications du quiz."""
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Mettre à jour le titre et le seuil
+        quiz.titre = data.get("titre", quiz.titre)
+        quiz.seuil_reussite_pct = int(data.get("seuil", quiz.seuil_reussite_pct))
+        quiz.save()
+        
+        # Mettre à jour les questions et choix
+        for q_data in data.get("questions", []):
+            question = QuizQuestion.objects.get(id=q_data["id"], quiz=quiz)
+            question.enonce = q_data["enonce"]
+            question.ordre = q_data["ordre"]
+            question.save()
+            
+            for c_data in q_data.get("choices", []):
+                choice = QuizChoice.objects.get(id=c_data["id"], question=question)
+                choice.texte = c_data["texte"]
+                choice.is_correct = c_data["is_correct"]
+                choice.save()
+        
+        return JsonResponse({"success": True})
+    
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+
+@frontend_login_required
+@csrf_protect
+@require_POST
+def quiz_delete(request: HttpRequest, quiz_id: int) -> JsonResponse:
+    """Supprimer un quiz complet."""
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Vérifier les permissions
+    if quiz.knowledge_item:
+        if not _can_edit_knowledge(request, quiz.knowledge_item):
+            return JsonResponse({"success": False, "error": "Accès refusé."}, status=403)
+    
+    quiz.delete()
+    return JsonResponse({"success": True})
