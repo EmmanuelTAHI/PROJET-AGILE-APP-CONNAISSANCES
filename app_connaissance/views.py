@@ -171,12 +171,28 @@ class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
 
 
 @frontend_login_required
+def _knowledge_qs_for_user(request: HttpRequest):
+    """Retourne un queryset KnowledgeItem filtré selon le rôle et le département de l'utilisateur.
+    - Admins/Managers voient tout
+    - Employés voient seulement les connaissances de leur département (ou aucune si pas de département)
+    """
+    qs = KnowledgeItem.objects.select_related("department").prefetch_related("tags")
+    profile = getattr(request.user, "profile", None)
+    if profile and profile.role in ("admin", "manager"):
+        return qs
+    if profile and profile.department_id:
+        # Inclure les contenus globaux (department=None) + ceux du département de l'utilisateur
+        return qs.filter(Q(department_id=profile.department_id) | Q(department__isnull=True))
+    # Si l'utilisateur n'a pas de département, ne pas afficher de contenu
+    return qs.none()
+
+
 def dashboard(request: HttpRequest) -> HttpResponse:
     user = request.user
     profile = getattr(user, "profile", None)
     role = profile.role if profile else None
 
-    knowledge_qs = KnowledgeItem.objects.select_related("department").prefetch_related("tags")
+    knowledge_qs = _knowledge_qs_for_user(request)
     pending_validation = list(knowledge_qs.filter(status=KnowledgeItem.Status.IN_REVIEW)[:8])
 
     agg = knowledge_qs.aggregate(
@@ -244,8 +260,24 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
     if department:
         items_qs = items_qs.filter(department__id=department)
 
+    # Restreindre selon le département de l'utilisateur pour les non-admins/managers
+    profile = getattr(request.user, "profile", None)
+    if not (profile and profile.role in ("admin", "manager")):
+        if profile and profile.department_id:
+            # Montrer les contenus globaux + ceux du département de l'utilisateur
+            items_qs = items_qs.filter(Q(department_id=profile.department_id) | Q(department__isnull=True))
+        else:
+            items_qs = items_qs.none()
+
     kinds = KnowledgeKind.objects.all()
-    departments = Department.objects.all()
+    # Le select dans le filtre département ne montre que les départements autorisés
+    if profile and profile.role in ("admin", "manager"):
+        departments = Department.objects.all()
+    else:
+        if profile and profile.department_id:
+            departments = Department.objects.filter(id=profile.department_id)
+        else:
+            departments = Department.objects.none()
 
     return render(
         request,
@@ -262,10 +294,26 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
 
 
 def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
-    """Vérifie si l'utilisateur peut consulter cette connaissance (publiée, auteur, manager, admin)."""
-    if item.status == KnowledgeItem.Status.PUBLISHED:
-        return True
+    """Vérifie si l'utilisateur peut consulter cette connaissance.
+
+    Règles :
+    - Admin / Manager : accès total
+    - Contenu publié : visible si global (department=None) ou si département de l'utilisateur == département de la connaissance
+    - Brouillon / En validation / Rejeté : uniquement auteur, manager ou admin
+    """
     profile = getattr(request.user, "profile", None)
+
+    # Contenus publiés : visibilité limitée par département (sauf admin/manager)
+    if item.status == KnowledgeItem.Status.PUBLISHED:
+        if profile and profile.role in ("admin", "manager"):
+            return True
+        if item.department_id is None:
+            return True
+        if profile and profile.department_id == item.department_id:
+            return True
+        return False
+
+    # Contenus non publiés : seuls admin/manager ou auteur
     if not profile:
         return False
     if profile.role in ("admin", "manager"):
