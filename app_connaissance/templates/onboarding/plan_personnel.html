@@ -33,8 +33,10 @@
           <div class="flex items-center gap-3">
             <div class="flex-1 min-w-0 max-w-xs">
               <div class="h-3 overflow-hidden rounded-full bg-slate-200">
+                {% with width_percent=progress.pourcentage|default:0 %}
                 <div class="h-full rounded-full transition-all duration-500 ease-out {% if progress.pourcentage == 100 %}bg-gradient-to-r from-emerald-500 to-emerald-600{% else %}bg-gradient-to-r from-sky-500 to-sky-600{% endif %}"
-                  style="width: {{ progress.pourcentage|default:0 }}%"></div>
+                  style="width: {{ width_percent }}%"></div>
+                {% endwith %}
               </div>
             </div>
             <span class="text-2xl font-bold tabular-nums text-sky-600">{{ progress.pourcentage }} %</span>
