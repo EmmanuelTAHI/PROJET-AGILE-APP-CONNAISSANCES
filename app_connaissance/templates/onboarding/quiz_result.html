@@ -1,0 +1,99 @@
+{% extends "_layouts/app.html" %}
+
+{% block title %}Résultats : {{ quiz.titre }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-slate-900">{{ quiz.titre }}</h1>
+            <p class="mt-2 text-slate-600">Résultats de votre tentative</p>
+        </div>
+
+        <div class="mb-8 flex flex-col items-center justify-center rounded-2xl bg-slate-50 p-6">
+            <div class="text-4xl font-bold {% if passed %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                {{ score_pct }}%
+            </div>
+            <div class="mt-1 text-sm font-medium text-slate-600">
+                {% if passed %}
+                    Bravo ! Vous avez validé ce quiz (Seuil : {{ quiz.seuil_reussite_pct }}%).
+                {% else %}
+                    Dommage, vous n'avez pas atteint le seuil de {{ quiz.seuil_reussite_pct }}%.
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="space-y-8">
+            {% for item in questions_results %}
+                <div class="border-b border-slate-100 pb-6 last:border-0 last:pb-0">
+                    <h3 class="mb-3 text-lg font-semibold text-slate-800">
+                        <span class="mr-2 text-slate-400">{{ forloop.counter }}.</span>
+                        {{ item.question.enonce }}
+                    </h3>
+                    <div class="space-y-2">
+                        {% for choice in item.choices %}
+                            {% with is_right_answer=choice.is_correct %}
+                                <div class="flex items-center justify-between rounded-xl border px-4 py-3 text-sm transition
+                                    {% if is_right_answer %}
+                                        border-emerald-200 bg-emerald-50 text-emerald-800
+                                    {% elif item.user_choice_id == choice.id and not is_right_answer %}
+                                        border-rose-200 bg-rose-50 text-rose-800
+                                    {% else %}
+                                        border-slate-200 bg-white text-slate-600 opacity-75
+                                    {% endif %}
+                                ">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-5 w-5 items-center justify-center rounded-full border 
+                                            {% if is_right_answer %}
+                                                border-emerald-500 bg-emerald-500 text-white
+                                            {% elif item.user_choice_id == choice.id and not is_right_answer %}
+                                                border-rose-500 bg-rose-500 text-white
+                                            {% else %}
+                                                border-slate-300
+                                            {% endif %}
+                                        ">
+                                            {% if is_right_answer %}
+                                                <i data-lucide="check" class="h-3 w-3"></i>
+                                            {% elif item.user_choice_id == choice.id and not is_right_answer %}
+                                                <i data-lucide="x" class="h-3 w-3"></i>
+                                            {% endif %}
+                                        </div>
+                                        <span class="font-medium">{{ choice.texte }}</span>
+                                    </div>
+                                    
+                                    {% if is_right_answer %}
+                                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Bonne réponse</span>
+                                    {% elif item.user_choice_id == choice.id %}
+                                        <span class="text-xs font-bold uppercase tracking-wider text-rose-600">Votre choix</span>
+                                    {% endif %}
+                                </div>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-8 flex justify-center gap-4 border-t border-slate-100 pt-6">
+            {% if quiz.knowledge_item %}
+                <a href="{% url 'knowledge_detail' quiz.knowledge_item.id %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <i data-lucide="arrow-left" class="h-4 w-4"></i>
+                    Retour à la connaissance
+                </a>
+            {% else %}
+                <a href="{% url 'plan_integration_personnel' %}" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                    <i data-lucide="arrow-left" class="h-4 w-4"></i>
+                    Retour au plan
+                </a>
+            {% endif %}
+
+            {% if not passed %}
+                <a href="{% url 'quiz_take' quiz.id %}" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700">
+                    <i data-lucide="refresh-ccw" class="h-4 w-4"></i>
+                    Réessayer
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

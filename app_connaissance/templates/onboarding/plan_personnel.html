@@ -17,12 +17,6 @@
           {% if plan.duree_estimee_jours %}
             <span class="mt-1 block font-medium text-slate-700">Durée estimée : {{ plan.duree_estimee_jours }} jour{{ plan.duree_estimee_jours|pluralize }}</span>
           {% endif %}
-          {% if profile %}
-            <span class="mt-2 block font-medium text-slate-700">
-              {% if profile.department %}Département : {{ profile.department.name }}{% endif %}
-              {% if profile.poste %} • Poste : {{ profile.poste.intitule }}{% endif %}
-            </span>
-          {% endif %}
         </p>
       </div>
       <a href="{% url 'onboarding_home' %}" class="inline-flex flex-shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
@@ -39,11 +33,10 @@
           <div class="flex items-center gap-3">
             <div class="flex-1 min-w-0 max-w-xs">
               <div class="h-3 overflow-hidden rounded-full bg-slate-200">
-                {% if progress.pourcentage == 100 %}
-                  <div class="progress-bar-emerald h-full rounded-full transition-all duration-500 ease-out" data-width="{{ progress.pourcentage }}"></div>
-                {% else %}
-                  <div class="progress-bar-sky h-full rounded-full transition-all duration-500 ease-out" data-width="{{ progress.pourcentage }}"></div>
-                {% endif %}
+                {% with width_percent=progress.pourcentage|default:0 %}
+                <div class="h-full rounded-full transition-all duration-500 ease-out {% if progress.pourcentage == 100 %}bg-gradient-to-r from-emerald-500 to-emerald-600{% else %}bg-gradient-to-r from-sky-500 to-sky-600{% endif %} progress-bar"
+                  data-width="{{ width_percent }}"></div>
+                {% endwith %}
               </div>
             </div>
             <span class="text-2xl font-bold tabular-nums text-sky-600">{{ progress.pourcentage }} %</span>
@@ -230,29 +223,13 @@
   </div>
 
   <script>
-    // Définir la largeur des barres de progression
+    // Appliquer la largeur de la barre de progression via JavaScript
     document.addEventListener('DOMContentLoaded', function() {
-      // Barre de progression principale
-      const progressBars = document.querySelectorAll('[data-width]');
-      progressBars.forEach(bar => {
-        const width = bar.getAttribute('data-width');
-        bar.style.width = width + '%';
-      });
-
-      // Barres de progression des modules
-      const moduleBars = document.querySelectorAll('.module-progress-bar');
-      moduleBars.forEach(bar => {
-        const total = parseInt(bar.getAttribute('data-steps-total'));
-        const completed = parseInt(bar.getAttribute('data-steps-completed'));
-        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-        bar.style.width = percentage + '%';
-        
-        // Changer la couleur si complété
-        if (percentage === 100) {
-          bar.classList.remove('bg-sky-500');
-          bar.classList.add('bg-emerald-500');
-        }
-      });
+      const progressBar = document.querySelector('.progress-bar');
+      if (progressBar) {
+        const width = progressBar.getAttribute('data-width');
+        progressBar.style.width = width + '%';
+      }
     });
 
     function getCsrfToken() {
@@ -263,8 +240,6 @@
     function toggleStep(checkbox) {
       const stepId = checkbox.dataset.stepId;
       const span = checkbox.closest("li").querySelector("span.step-label");
-      const statusIcon = checkbox.closest("li").querySelector("span:last-child i");
-      
       fetch("{% url 'module_step_toggle' 0 %}".replace("0", stepId), {
         method: "POST",
         headers: {
@@ -279,44 +254,14 @@
             if (data.checked) {
               span.classList.remove("text-slate-700");
               span.classList.add("line-through", "text-slate-500");
-              checkbox.closest("label").classList.add("bg-emerald-50", "border-emerald-200");
-              
-              // Mettre à jour l'icône
-              statusIcon.setAttribute("data-lucide", "check-circle");
-              statusIcon.parentElement.classList.remove("text-slate-400");
-              statusIcon.parentElement.classList.add("text-emerald-600", "font-medium");
-              statusIcon.nextElementSibling.textContent = " Terminé";
             } else {
               span.classList.add("text-slate-700");
               span.classList.remove("line-through", "text-slate-500");
-              checkbox.closest("label").classList.remove("bg-emerald-50", "border-emerald-200");
-              
-              // Mettre à jour l'icône
-              statusIcon.setAttribute("data-lucide", "circle");
-              statusIcon.parentElement.classList.add("text-slate-400");
-              statusIcon.parentElement.classList.remove("text-emerald-600", "font-medium");
-              statusIcon.nextElementSibling.textContent = " À faire";
             }
-            
-            // Recharger les icônes Lucide
-            if (typeof lucide !== 'undefined') {
-              lucide.createIcons();
-            }
-            
-            // Recharger la page pour mettre à jour la progression globale
-            setTimeout(() => location.reload(), 500);
+            location.reload();
           }
         })
         .catch(() => location.reload());
     }
   </script>
-
-  <style>
-    .progress-bar-emerald {
-      background: linear-gradient(to right, rgb(16 185 129), rgb(5 150 105));
-    }
-    .progress-bar-sky {
-      background: linear-gradient(to right, rgb(14 165 233), rgb(2 132 199));
-    }
-  </style>
 {% endblock %}

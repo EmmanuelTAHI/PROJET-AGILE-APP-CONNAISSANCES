@@ -1,50 +1,84 @@
-# 📚 Documentation du Projet
+# Projet Agile — Installation & démarrage
 
-Ce dossier contient toute la documentation du projet de plan d'intégration.
+Ce dépôt est une application Django (SQLite) avec Tailwind CSS + DaisyUI gérés via `npm`.
 
-## 📋 Fichiers de Documentation
+Prérequis
+- Python 3.10+ (recommandé 3.11)
+- Node.js + npm
+- Sur Windows, installez les Build Tools si `Pillow` échoue (Visual C++). Installer `libjpeg`/libpng si besoin.
 
-### 📊 Analyses et Spécifications
-- **`analyse_fonctionnaliter_plan_integration.md`** - Analyse complète des fonctionnalités avec cases à cocher
-- **`IMPLEMENTATION_PLAN_INTEGRATION.md`** - Documentation technique de l'implémentation
-- **`IMPLEMENTATION_COMPLETE.md`** - Résumé de l'implémentation complète
+Installation (développement)
 
-### 📝 Notes et Divers
-- **`analyse.md`** - Notes d'analyse générales
+1. Créez et activez un environnement virtuel
 
----
+   Windows (PowerShell)
 
-## 🎯 Vue d'Ensemble
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
 
-### ✅ Fonctionnalités Implémentées
-- Plan d'intégration personnalisé
-- Quiz interactifs avec feedback
-- Badges et récompenses automatiques
-- Notifications email complètes
-- Interface d'administration avancée
-- Export PDF professionnel
-- Tests unitaires complets
-- Logging et gestion d'erreurs
+2. Mettre pip à jour et installer les dépendances Python
 
-### 🚀 Utilisateur de Test
-- **Identifiants :** `bk` / `bk123`
-- **Profil :** Développeur Web - Département Informatique
-- **Progression :** Plan complet avec contenus riches
+   ```powershell
+   python -m pip install --upgrade pip setuptools wheel
+   pip install -r requirements.txt
+   ```
 
-### 📈 Statistiques
-- **4000+ lignes de code** ajoutées
-- **25+ nouveaux fichiers** créés
-- **15+ tests unitaires** complets
-- **100% des fonctionnalités** demandées
+3. Installer les dépendances Node (Tailwind + DaisyUI sont déjà dans `package.json`)
 
----
+   ```bash
+   npm install
+   ```
 
-## 🔍 Navigation dans la Documentation
+4. Construire les CSS Tailwind
 
-1. **Pour comprendre les besoins :** `analyse_fonctionnaliter_plan_integration.md`
-2. **Pour voir les détails techniques :** `IMPLEMENTATION_PLAN_INTEGRATION.md`
-3. **Pour le résumé final :** `IMPLEMENTATION_COMPLETE.md`
+   - Construction de production (minifiée) :
 
----
+     ```bash
+     npm run build:css
+     ```
 
-*Documentation générée le 4 février 2026*
+   - Mode développement (recompilation automatique) :
+
+     ```bash
+     npm run watch:css
+     ```
+
+   Les sources Tailwind sont dans `assets/css/input.css` et le CSS compilé est généré dans `static/css/app.css`.
+
+5. Préparer la base de données
+
+   ```bash
+   python manage.py migrate
+   python manage.py createsuperuser
+   ```
+
+6. (Optionnel) Créer des données d'exemple
+
+   ```bash
+   python manage.py loaddata initial_data.json  # si vous avez un fixture
+   # ou utiliser les commandes de gestion fournies
+   python manage.py populate_data
+   ```
+
+7. Lancer le serveur de développement
+
+   ```bash
+   python manage.py runserver
+   ```
+
+Notes importantes
+- Les fichiers médias sont servis depuis le dossier `media/` (défini dans `projet/settings.py`).
+- Les identifiants SMTP et la `SECRET_KEY` sont en clair dans `projet/settings.py` pour le développement — pour la production, utiliser des variables d'environnement.
+- `Pillow` est requis pour les champs `ImageField` — si l'installation échoue, installez les dépendances système (libjpeg, zlib) puis réessayez.
+- `tailwindcss` et `daisyui` sont des dépendances `npm` (dev). Vous n'avez pas besoin de les ajouter dans `requirements.txt`.
+
+Commandes utiles
+- Tests : `python manage.py test`
+- Collecte des fichiers statiques (production) : `python manage.py collectstatic --noinput`
+
+Si vous souhaitez, je peux :
+- pinner des versions plus précises des paquets Python,
+- ajouter un `Makefile` ou des scripts pour Windows/Unix pour automatiser l'installation,
+- ou préparer un `docker-compose` pour faciliter le déploiement.

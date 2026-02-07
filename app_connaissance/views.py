@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import random
+import re
 import secrets
 import string
 
@@ -23,6 +25,7 @@ from django.utils import timezone
 
 from .forms import DepartmentForm, OnboardingStepForm, ProfileEditForm, UserCreateForm
 from .frontend_auth import frontend_login_required, frontend_roles_required
+from .services import generate_quiz_for_knowledge
 from .models import (
     Department,
     KnowledgeItem,
@@ -69,24 +72,6 @@ def _estimate_read_time_min(content: str) -> int:
     words = len((content or "").split())
     # ~200 mots/minute, min 1
     return max(1, round(words / 200) or 1)
-
-
-def _filter_knowledge_for_user(request: HttpRequest, qs):
-    """Retourne le queryset restreint selon le rôle et le département de l'utilisateur.
-    - Les 'admin' et 'manager' voient tout.
-    - Les autres utilisateurs ne voient que les contenus attachés à leur département.
-    """
-    profile = getattr(request.user, "profile", None)
-    # Pas de profil -> pas de contenu
-    if not profile:
-        return qs.none()
-    # Admins et managers voient tout
-    if profile.role in ("admin", "manager"):
-        return qs
-    # Les employés voient uniquement les contenus de leur département
-    if getattr(profile, "department_id", None):
-        return qs.filter(department_id=profile.department_id)
-    return qs.none()
 
 
 def index_redirect(request: HttpRequest) -> HttpResponse:
@@ -186,14 +171,28 @@ class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
 
 
 @frontend_login_required
+def _knowledge_qs_for_user(request: HttpRequest):
+    """Retourne un queryset KnowledgeItem filtré selon le rôle et le département de l'utilisateur.
+    - Admins/Managers voient tout
+    - Employés voient seulement les connaissances de leur département (ou aucune si pas de département)
+    """
+    qs = KnowledgeItem.objects.select_related("department").prefetch_related("tags")
+    profile = getattr(request.user, "profile", None)
+    if profile and profile.role in ("admin", "manager"):
+        return qs
+    if profile and profile.department_id:
+        # Inclure les contenus globaux (department=None) + ceux du département de l'utilisateur
+        return qs.filter(Q(department_id=profile.department_id) | Q(department__isnull=True))
+    # Si l'utilisateur n'a pas de département, ne pas afficher de contenu
+    return qs.none()
+
+
 def dashboard(request: HttpRequest) -> HttpResponse:
     user = request.user
     profile = getattr(user, "profile", None)
     role = profile.role if profile else None
 
-    knowledge_qs = KnowledgeItem.objects.select_related("department").prefetch_related("tags")
-    # Restreindre la portée selon le rôle / département de l'utilisateur
-    knowledge_qs = _filter_knowledge_for_user(request, knowledge_qs)
+    knowledge_qs = _knowledge_qs_for_user(request)
     pending_validation = list(knowledge_qs.filter(status=KnowledgeItem.Status.IN_REVIEW)[:8])
 
     agg = knowledge_qs.aggregate(
@@ -249,7 +248,7 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
 
     # La liste publique ne montre que les contenus publiés
     items_qs = (
-        KnowledgeItem.objects.select_related("department")
+        KnowledgeItem.objects.select_related("department", "kind", "quiz")
         .prefetch_related("tags", "versions")
         .annotate(version_count=Count("versions"))
         .filter(status=KnowledgeItem.Status.PUBLISHED)
@@ -261,11 +260,24 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
     if department:
         items_qs = items_qs.filter(department__id=department)
 
-    # Appliquer la restriction par département selon l'utilisateur connecté
-    items_qs = _filter_knowledge_for_user(request, items_qs)
+    # Restreindre selon le département de l'utilisateur pour les non-admins/managers
+    profile = getattr(request.user, "profile", None)
+    if not (profile and profile.role in ("admin", "manager")):
+        if profile and profile.department_id:
+            # Montrer les contenus globaux + ceux du département de l'utilisateur
+            items_qs = items_qs.filter(Q(department_id=profile.department_id) | Q(department__isnull=True))
+        else:
+            items_qs = items_qs.none()
 
     kinds = KnowledgeKind.objects.all()
-    departments = Department.objects.all()
+    # Le select dans le filtre département ne montre que les départements autorisés
+    if profile and profile.role in ("admin", "manager"):
+        departments = Department.objects.all()
+    else:
+        if profile and profile.department_id:
+            departments = Department.objects.filter(id=profile.department_id)
+        else:
+            departments = Department.objects.none()
 
     return render(
         request,
@@ -284,22 +296,24 @@ def knowledge_list(request: HttpRequest) -> HttpResponse:
 def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
     """Vérifie si l'utilisateur peut consulter cette connaissance.
 
-    - Pour les contenus publiés, seuls les admins/managers ET les employés du même département y ont accès.
-    - Pour les contenus non publiés, l'auteur, les managers et admins peuvent y accéder.
+    Règles :
+    - Admin / Manager : accès total
+    - Contenu publié : visible si global (department=None) ou si département de l'utilisateur == département de la connaissance
+    - Brouillon / En validation / Rejeté : uniquement auteur, manager ou admin
     """
-    # Cas : publié -> restreindre par département sauf pour admin/manager
+    profile = getattr(request.user, "profile", None)
+
+    # Contenus publiés : visibilité limitée par département (sauf admin/manager)
     if item.status == KnowledgeItem.Status.PUBLISHED:
-        profile = getattr(request.user, "profile", None)
-        if not profile:
-            return False
-        if profile.role in ("admin", "manager"):
+        if profile and profile.role in ("admin", "manager"):
             return True
-        if profile.department_id and item.department_id == profile.department_id:
+        if item.department_id is None:
+            return True
+        if profile and profile.department_id == item.department_id:
             return True
         return False
 
-    # Cas : non publié -> autorisation habituelle
-    profile = getattr(request.user, "profile", None)
+    # Contenus non publiés : seuls admin/manager ou auteur
     if not profile:
         return False
     if profile.role in ("admin", "manager"):
@@ -312,7 +326,7 @@ def _can_view_knowledge(request: HttpRequest, item: KnowledgeItem) -> bool:
 @frontend_login_required
 def knowledge_detail(request: HttpRequest, knowledge_id: int) -> HttpResponse:
     item = get_object_or_404(
-        KnowledgeItem.objects.select_related("department", "author_user").prefetch_related(
+        KnowledgeItem.objects.select_related("department", "author_user", "quiz").prefetch_related(
             "tags", "competences", "versions"
         ),
         pk=knowledge_id,
@@ -796,50 +810,28 @@ def _get_user_plan(request: HttpRequest) -> PlanIntegration | None:
 
 def _progress_for_plan(user, plan: PlanIntegration) -> dict:
     """Calcule la progression (pourcentage, modules complétés, quiz passés, sous-étapes)."""
-    # Optimisation: Utiliser select_related et prefetch_related pour minimiser les requêtes
     modules = list(
-        plan.modules.prefetch_related(
-            "quiz", 
-            "quiz__questions", 
-            "quiz__questions__choices", 
-            "steps",
-            "knowledge_links",
-            "knowledge_links__knowledge_item",
-            "knowledge_links__knowledge_item__versions"
-        )
-        .select_related("plan")
+        plan.modules.prefetch_related("quiz", "quiz__questions", "quiz__questions__choices", "steps")
         .order_by("ordre")
     )
     total = len(modules)
     if total == 0:
         return {"pourcentage": 0, "modules": [], "progression_obj": None}
 
-    # Optimisation: Récupérer toutes les données en une seule requête
-    quiz_attempts = UserQuizAttempt.objects.filter(
-        user=user, 
-        quiz__module__plan=plan
-    ).select_related("quiz", "quiz__module")
-    
-    step_completions = UserModuleStepCompletion.objects.filter(
-        user=user,
-        module_step__module__plan=plan
-    ).select_related("module_step", "module_step__module")
-    
-    # Créer des sets pour un accès rapide
     quiz_passed_ids = set(
-        attempt.quiz_id for attempt in quiz_attempts if attempt.passed
+        UserQuizAttempt.objects.filter(user=user, passed=True).values_list("quiz_id", flat=True)
     )
     completed_step_ids = set(
-        completion.module_step_id for completion in step_completions
+        UserModuleStepCompletion.objects.filter(user=user)
+        .values_list("module_step_id", flat=True)
     )
-    
     completed = 0
     module_status = []
     previous_module_passed = True  # Le premier module est toujours accessible
     
     for mod in modules:
-        has_quiz = hasattr(mod, "quiz") and mod.quiz
-        steps = list(getattr(mod, "steps", []).all())
+        has_quiz = hasattr(mod, "quiz") and mod.quiz_id
+        steps = list(getattr(mod, "steps", []))
         steps_completed = [s for s in steps if s.id in completed_step_ids]
         steps_passed = len(steps) == 0 or len(steps_completed) == len(steps)
         
@@ -948,14 +940,6 @@ def plan_integration_personnel(request: HttpRequest) -> HttpResponse:
     if not plan:
         messages.info(request, "Aucun plan d'intégration n'est associé à votre poste. Consultez les étapes générales ci-dessous.")
         return redirect("onboarding_home")
-    
-    # Récupérer le profil utilisateur pour afficher le contexte
-    profile = (
-        UserProfile.objects.filter(user=request.user)
-        .select_related("department", "poste")
-        .first()
-    )
-    
     progress = _progress_for_plan(request.user, plan)
     return render(
         request,
@@ -963,23 +947,52 @@ def plan_integration_personnel(request: HttpRequest) -> HttpResponse:
         {
             "plan": plan,
             "progress": progress,
-            "profile": profile,  # Ajout du profil pour le contexte
         },
     )
+
+
+@frontend_login_required
+def knowledge_generate_quiz(request: HttpRequest, knowledge_id: int) -> HttpResponse:
+    item = get_object_or_404(KnowledgeItem, pk=knowledge_id)
+    if not _can_edit_knowledge(request, item):
+         messages.error(request, "Droit insuffisant pour générer un quiz.")
+         return redirect("knowledge_detail", knowledge_id=item.id)
+    
+    # Check if quiz already exists
+    if hasattr(item, "quiz"):
+        messages.info(request, "Un quiz existe déjà pour cette connaissance.")
+        return redirect("knowledge_detail", knowledge_id=item.id)
+
+    quiz = generate_quiz_for_knowledge(item)
+    
+    if not quiz:
+        messages.warning(request, "Contenu trop court ou insuffisant pour générer un quiz automatiquement.")
+    else:
+        count = quiz.questions.count()
+        messages.success(request, f"Quiz généré avec {count} questions.")
+        
+    return redirect("knowledge_detail", knowledge_id=item.id)
 
 
 @frontend_login_required
 def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
     """Affiche un quiz et enregistre les réponses (score, passage)."""
     quiz = get_object_or_404(
-        Quiz.objects.select_related("module").prefetch_related("questions", "questions__choices"),
+        Quiz.objects.select_related("module", "knowledge_item").prefetch_related("questions", "questions__choices"),
         pk=quiz_id,
     )
-    # Vérifier que le quiz appartient au plan du poste/département de l'utilisateur
-    plan = _get_user_plan(request)
-    if not plan or not quiz.module or getattr(quiz.module, "plan_id", None) != plan.id:
-        messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
-        return redirect("onboarding_home")
+    
+    plan = None
+    if quiz.knowledge_item:
+         if not _can_view_knowledge(request, quiz.knowledge_item):
+             messages.error(request, "Vous n'avez pas accès à ce quiz.")
+             return redirect("knowledge_list")
+    else:
+        # Vérifier que le quiz appartient au plan du poste/département de l'utilisateur
+        plan = _get_user_plan(request)
+        if not plan or not quiz.module_id or getattr(quiz.module, "plan_id", None) != plan.id:
+            messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
+            return redirect("onboarding_home")
 
     # Vérifier les prérequis : toutes les sous-étapes du module doivent être complétées
     progress = _progress_for_plan(request.user, plan)
@@ -1017,30 +1030,69 @@ def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
         total_questions = quiz.questions.count()
         if total_questions == 0:
             messages.warning(request, "Ce quiz n'a pas de questions.")
+            if quiz.knowledge_item:
+                 return redirect("knowledge_detail", knowledge_id=quiz.knowledge_item.id)
             return redirect("plan_integration_personnel")
 
         correct = 0
+        questions_results = []
+        
         for q in quiz.questions.all():
             choice_id = selected.get(q.id)
+            is_correct = False
+            correct_choice = None
+            
+            # Find correct choice for this question
+            choices = list(q.choices.all()) # Use prefetch
+            for c in choices:
+                if c.is_correct:
+                    correct_choice = c
+                    break
+            
             if choice_id:
-                if QuizChoice.objects.filter(question=q, id=choice_id, is_correct=True).exists():
-                    correct += 1
+                # Check if selected is correct
+                # We can do this in memory since we have the list
+                for c in choices:
+                    if c.id == choice_id and c.is_correct:
+                        is_correct = True
+                        break
+            
+            if is_correct:
+                correct += 1
+                
+            questions_results.append({
+                "question": q,
+                "user_choice_id": choice_id,
+                "is_correct": is_correct,
+                "correct_choice": correct_choice,
+                "choices": choices
+            })
+
         score_pct = round((correct / total_questions) * 100)
         passed = score_pct >= quiz.seuil_reussite_pct
 
-        attempt, _ = UserQuizAttempt.objects.update_or_create(
-            user=request.user,
-            quiz=quiz,
-            defaults={"score_pct": score_pct, "passed": passed},
-        )
+        if request.user.is_authenticated:
+            attempt, _ = UserQuizAttempt.objects.update_or_create(
+                user=request.user,
+                quiz=quiz,
+                defaults={"score_pct": score_pct, "passed": passed},
+            )
 
-        _progress_for_plan(request.user, plan)
-
-        if passed:
-            messages.success(request, f"Quiz réussi avec {score_pct} %.")
+            if plan:
+                 _progress_for_plan(request.user, plan)
         else:
-            messages.warning(request, f"Score : {score_pct} %. Il faut {quiz.seuil_reussite_pct} % pour valider. Vous pouvez réessayer.")
-        return redirect("plan_integration_personnel")
+             messages.info(request, "Vous êtes en mode invité : votre résultat ne sera pas enregistré.")
+
+        return render(
+            request,
+            "onboarding/quiz_result.html",
+            {
+                "quiz": quiz,
+                "score_pct": score_pct,
+                "passed": passed,
+                "questions_results": questions_results,
+            }
+        )
 
     return render(
         request,
