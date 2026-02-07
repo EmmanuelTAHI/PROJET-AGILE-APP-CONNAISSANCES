@@ -56,50 +56,78 @@
     {# ----- Liste des modules (cartes séparées) avec sous-étapes et checkboxes ----- #}
     <div class="space-y-4">
       {% for item in progress.modules %}
-        <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 {% if item.passed %}border-emerald-200 bg-emerald-50/30{% endif %}">
-          <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
+        {% if item.accessible %}
+          <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 {% if item.passed %}border-emerald-200 bg-emerald-50/30{% endif %}">
+        {% else %}
+          <article class="overflow-hidden rounded-2xl border border-slate-200/40 bg-slate-50/50 opacity-60">
+            <div class="absolute inset-0 bg-slate-100/20 backdrop-blur-[1px]"></div>
+        {% endif %}
+          <div class="relative flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0 flex-1">
-              <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Module {{ item.module.ordre }}</div>
-              <h3 class="mt-1 text-lg font-bold text-slate-900">{{ item.module.titre }}</h3>
+              <div class="flex items-center gap-2">
+                <div class="text-xs font-semibold uppercase tracking-wider {% if item.accessible %}text-slate-500{% else %}text-slate-400{% endif %}">Module {{ item.module.ordre }}</div>
+                {% if not item.accessible %}
+                  <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                    <i data-lucide="lock" class="h-3 w-3"></i>
+                    Verrouillé
+                  </span>
+                {% endif %}
+              </div>
+              <h3 class="mt-1 text-lg font-bold {% if item.accessible %}text-slate-900{% else %}text-slate-500{% endif %}">{{ item.module.titre }}</h3>
               {% if item.module.duree_jours %}
-                <div class="mt-1.5 flex items-center gap-1.5 text-sm text-slate-600">
-                  <i data-lucide="clock" class="h-4 w-4 flex-shrink-0 text-slate-400"></i>
+                <div class="mt-1.5 flex items-center gap-1.5 text-sm {% if item.accessible %}text-slate-600{% else %}text-slate-400{% endif %}">
+                  <i data-lucide="clock" class="h-4 w-4 flex-shrink-0"></i>
                   Durée estimée : {{ item.module.duree_jours }} jour{{ item.module.duree_jours|pluralize }}
                 </div>
               {% endif %}
+              {% if not item.accessible %}
+                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div class="flex items-center gap-2 text-sm text-amber-800">
+                    <i data-lucide="info" class="h-4 w-4"></i>
+                    <span>Terminez le module précédent pour débloquer ce module.</span>
+                  </div>
+                </div>
+              {% endif %}
               {% if item.steps %}
-                <div class="mt-4 space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                <div class="mt-4 space-y-2 rounded-xl {% if item.accessible %}border border-slate-100 bg-slate-50/50{% else %}border border-slate-100/50 bg-slate-100/30{% endif %} p-4">
                   <div class="flex items-center justify-between">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sous-étapes</div>
-                    <div class="text-xs font-medium text-slate-600">
+                    <div class="text-xs font-semibold uppercase tracking-wider {% if item.accessible %}text-slate-500{% else %}text-slate-400{% endif %}">Sous-étapes</div>
+                    <div class="text-xs font-medium {% if item.accessible %}text-slate-600{% else %}text-slate-400{% endif %}">
                       {{ item.steps|length }} étape{{ item.steps|length|pluralize }} - 
                       <span class="{% if item.steps|length == item.steps_completed|length %}text-emerald-600{% else %}text-sky-600{% endif %}">
                         {{ item.steps_completed|length }} complétée{{ item.steps_completed|length|pluralize }}
                       </span>
                     </div>
                   </div>
-                  <div class="w-full bg-slate-200 rounded-full h-2 mb-3">
-                    <div class="module-progress-bar bg-sky-500 h-2 rounded-full transition-all duration-300" 
+                  <div class="w-full {% if item.accessible %}bg-slate-200{% else %}bg-slate-200/50{% endif %} rounded-full h-2 mb-3">
+                    <div class="{% if item.accessible %}bg-sky-500{% else %}bg-slate-400/50{% endif %} h-2 rounded-full transition-all duration-300" 
                          data-steps-total="{{ item.steps|length }}" 
                          data-steps-completed="{{ item.steps_completed|length }}"></div>
                   </div>
                   <ul class="space-y-2">
                     {% for step in item.steps %}
                       <li class="flex items-center gap-3">
-                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-sky-200 hover:bg-sky-50/50 focus-within:ring-2 focus-within:ring-sky-500/30 {% if step.id in item.completed_step_ids %}bg-emerald-50 border-emerald-200{% endif %}">
-                          <input type="checkbox"
-                                 class="step-checkbox h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                                 data-step-id="{{ step.id }}"
-                                 {% if step.id in item.completed_step_ids %}checked{% endif %}
-                                 onchange="toggleStep(this)">
-                          <span class="step-label text-sm font-medium {% if step.id in item.completed_step_ids %}line-through text-slate-500{% else %}text-slate-700{% endif %}">{{ step.titre }}</span>
-                        </label>
+                        {% if item.accessible %}
+                          <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-sky-200 hover:bg-sky-50/50 focus-within:ring-2 focus-within:ring-sky-500/30 {% if step.id in item.completed_step_ids %}bg-emerald-50 border-emerald-200{% endif %}">
+                            <input type="checkbox"
+                                   class="step-checkbox h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                   data-step-id="{{ step.id }}"
+                                   {% if step.id in item.completed_step_ids %}checked{% endif %}
+                                   onchange="toggleStep(this)">
+                            <span class="step-label text-sm font-medium {% if step.id in item.completed_step_ids %}line-through text-slate-500{% else %}text-slate-700{% endif %}">{{ step.titre }}</span>
+                          </label>
+                        {% else %}
+                          <div class="flex items-center gap-2 rounded-lg border border-slate-200/50 bg-slate-50/50 px-3 py-2 opacity-60">
+                            <i data-lucide="lock" class="h-4 w-4 text-slate-400"></i>
+                            <span class="text-sm font-medium text-slate-500">{{ step.titre }}</span>
+                          </div>
+                        {% endif %}
                         {% if step.id in item.completed_step_ids %}
                           <span class="text-xs text-emerald-600 font-medium">
                             <i data-lucide="check-circle" class="inline h-4 w-4"></i> Terminé
                           </span>
                         {% else %}
-                          <span class="text-xs text-slate-400">
+                          <span class="text-xs {% if item.accessible %}text-slate-400{% else %}text-slate-300{% endif %}">
                             <i data-lucide="circle" class="inline h-4 w-4"></i> À faire
                           </span>
                         {% endif %}
@@ -111,32 +139,45 @@
               
               {# Ajout des connaissances liées au module #}
               {% if item.knowledge_items %}
-                <div class="mt-4 space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                  <div class="text-xs font-semibold uppercase tracking-wider text-blue-500">Connaissances associées</div>
+                <div class="mt-4 space-y-2 rounded-xl {% if item.accessible or item.passed %}border border-blue-100 bg-blue-50/50{% else %}border border-blue-100/30 bg-blue-50/20{% endif %} p-4">
+                  <div class="text-xs font-semibold uppercase tracking-wider {% if item.accessible or item.passed %}text-blue-500{% else %}text-blue-400{% endif %}">Connaissances associées</div>
                   <ul class="space-y-2">
                     {% for knowledge_data in item.knowledge_items %}
                       {% with knowledge_item=knowledge_data.item %}
                         <li class="flex items-center gap-3">
-                          <a href="{% url 'knowledge_detail' knowledge_item.id %}" 
-                             class="flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 transition hover:border-blue-300 hover:bg-blue-50/50">
-                            <i data-lucide="book-open" class="h-4 w-4 text-blue-500"></i>
-                            <div class="flex-1 min-w-0">
-                              <div class="text-sm font-medium text-slate-700 truncate">{{ knowledge_item.title }}</div>
-                              <div class="text-xs text-slate-500">
-                                {% if knowledge_item.kind %}{{ knowledge_item.kind.name }}{% endif %}
-                                {% if knowledge_item.read_time_min %} • {{ knowledge_item.read_time_min }} min{% endif %}
+                          {% if item.accessible or item.passed %}
+                            <a href="{% url 'knowledge_detail' knowledge_item.id %}" 
+                               class="flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 transition hover:border-blue-300 hover:bg-blue-50/50">
+                              <i data-lucide="book-open" class="h-4 w-4 text-blue-500"></i>
+                              <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-slate-700 truncate">{{ knowledge_item.title }}</div>
+                                <div class="text-xs text-slate-500">
+                                  {% if knowledge_item.kind %}{{ knowledge_item.kind.name }}{% endif %}
+                                  {% if knowledge_item.read_time_min %} • {{ knowledge_item.read_time_min }} min{% endif %}
+                                </div>
+                              </div>
+                            </a>
+                          {% else %}
+                            <div class="flex items-center gap-2 rounded-lg border border-blue-200/50 bg-blue-50/30 px-3 py-2 opacity-60">
+                              <i data-lucide="lock" class="h-4 w-4 text-blue-400"></i>
+                              <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-slate-500 truncate">{{ knowledge_item.title }}</div>
+                                <div class="text-xs text-slate-400">
+                                  {% if knowledge_item.kind %}{{ knowledge_item.kind.name }}{% endif %}
+                                  {% if knowledge_item.read_time_min %} • {{ knowledge_item.read_time_min }} min{% endif %}
+                                </div>
                               </div>
                             </div>
-                            {% if knowledge_item.status == 'published' %}
-                              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Validé
-                              </span>
-                            {% elif knowledge_item.status == 'in_review' %}
-                              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                En validation
-                              </span>
-                            {% endif %}
-                          </a>
+                          {% endif %}
+                          {% if knowledge_item.status == 'published' %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Validé
+                            </span>
+                          {% elif knowledge_item.status == 'in_review' %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              En validation
+                            </span>
+                          {% endif %}
                         </li>
                       {% endwith %}
                     {% endfor %}
@@ -146,20 +187,30 @@
             </div>
             <div class="flex flex-shrink-0 items-center gap-3">
               {% if item.has_quiz %}
-                {% if item.passed %}
+                {% if item.quiz_passed %}
                   <span class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
                     <i data-lucide="check-circle" class="h-5 w-5"></i>
                     Quiz réussi
                   </span>
-                {% else %}
+                {% elif item.accessible and item.steps_passed %}
                   <a href="{% url 'quiz_take' item.quiz.id %}" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:from-sky-600 hover:to-sky-700 hover:shadow-sky-500/30">
                     <i data-lucide="help-circle" class="h-5 w-5"></i>
                     Passer le quiz
                   </a>
+                {% elif item.accessible %}
+                  <span class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600">
+                    <i data-lucide="clock" class="h-5 w-5 text-slate-400"></i>
+                    Complétez les étapes d'abord
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center gap-2 rounded-xl border border-slate-200/50 bg-slate-50/50 px-4 py-2.5 text-sm font-semibold text-slate-400">
+                    <i data-lucide="lock" class="h-5 w-5"></i>
+                    Quiz verrouillé
+                  </span>
                 {% endif %}
               {% else %}
-                <span class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600">
-                  <i data-lucide="book-open" class="h-5 w-5 text-slate-400"></i>
+                <span class="inline-flex items-center gap-2 rounded-xl {% if item.accessible %}border border-slate-200 bg-slate-50{% else %}border border-slate-200/50 bg-slate-50/30{% endif %} px-4 py-2.5 text-sm font-semibold {% if item.accessible %}text-slate-600{% else %}text-slate-400{% endif %}">
+                  <i data-lucide="book-open" class="h-5 w-5 {% if item.accessible %}text-slate-400{% else %}text-slate-300{% endif %}"></i>
                   Module informatif
                 </span>
               {% endif %}
