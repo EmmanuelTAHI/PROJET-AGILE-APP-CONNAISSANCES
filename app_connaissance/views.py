@@ -827,38 +827,69 @@ def _progress_for_plan(user, plan: PlanIntegration) -> dict:
     )
     completed = 0
     module_status = []
+    previous_module_passed = True  # Le premier module est toujours accessible
+    
     for mod in modules:
         has_quiz = hasattr(mod, "quiz") and mod.quiz_id
         steps = list(getattr(mod, "steps", []))
         steps_completed = [s for s in steps if s.id in completed_step_ids]
         steps_passed = len(steps) == 0 or len(steps_completed) == len(steps)
+        
+        # Récupérer les connaissances liées à ce module
+        knowledge_items = []
+        if hasattr(mod, 'knowledge_links'):
+            for link in mod.knowledge_links.all().order_by('ordre'):
+                knowledge_items.append({
+                    'item': link.knowledge_item,
+                    'ordre': link.ordre
+                })
+        
+        # Vérifier si le module est accessible (module précédent complété)
+        module_accessible = previous_module_passed
+        
         if has_quiz:
-            quiz_passed = mod.quiz_id and mod.quiz_id in quiz_passed_ids
-            mod_passed = quiz_passed and steps_passed
+            quiz_passed = mod.quiz.id and mod.quiz.id in quiz_passed_ids
+            # Un module est validé seulement si : accessible + étapes complétées + quiz réussi
+            mod_passed = module_accessible and quiz_passed and steps_passed
             if mod_passed:
                 completed += 1
             module_status.append({
                 "module": mod,
                 "has_quiz": True,
                 "passed": mod_passed,
+                "accessible": module_accessible,
+                "quiz_passed": quiz_passed,  # Ajout de l'état spécifique du quiz
+                "steps_passed": steps_passed,  # Ajout de l'état spécifique des étapes
                 "quiz": getattr(mod, "quiz", None),
                 "steps": steps,
                 "steps_completed": steps_completed,
                 "completed_step_ids": completed_step_ids,
+                "knowledge_items": knowledge_items,
             })
         else:
-            mod_passed = steps_passed
+            # Un module sans quiz est validé seulement si : accessible + étapes complétées
+            mod_passed = module_accessible and steps_passed
             if mod_passed:
                 completed += 1
             module_status.append({
                 "module": mod,
                 "has_quiz": False,
                 "passed": mod_passed,
+                "accessible": module_accessible,
+                "steps_passed": steps_passed,  # Ajout de l'état spécifique des étapes
                 "quiz": None,
                 "steps": steps,
                 "steps_completed": steps_completed,
                 "completed_step_ids": completed_step_ids,
+                "knowledge_items": knowledge_items,
             })
+        
+        # Pour le prochain module, vérifier si celui-ci est complété
+        if mod_passed:
+            previous_module_passed = True
+        else:
+            # Si le module actuel n'est pas passé, les suivants ne sont pas accessibles
+            previous_module_passed = False
 
     pourcentage = round((completed / total) * 100) if total else 0
     progression_obj = Progression.objects.filter(user=user, plan=plan).first()
@@ -962,6 +993,32 @@ def quiz_take(request: HttpRequest, quiz_id: int) -> HttpResponse:
         if not plan or not quiz.module_id or getattr(quiz.module, "plan_id", None) != plan.id:
             messages.error(request, "Ce quiz ne fait pas partie de votre plan d'intégration.")
             return redirect("onboarding_home")
+
+    # Vérifier les prérequis : toutes les sous-étapes du module doivent être complétées
+    progress = _progress_for_plan(request.user, plan)
+    current_module_status = None
+    for module_status in progress["modules"]:
+        if module_status["module"].id == quiz.module.id:
+            current_module_status = module_status
+            break
+    
+    if not current_module_status:
+        messages.error(request, "Module introuvable dans votre progression.")
+        return redirect("plan_integration_personnel")
+    
+    # Vérifier que le module est accessible
+    if not current_module_status.get("accessible", False):
+        messages.error(request, "Vous devez d'abord compléter le module précédent avant d'accéder à ce quiz.")
+        return redirect("plan_integration_personnel")
+    
+    # Vérifier que toutes les sous-étapes sont complétées
+    steps = current_module_status.get("steps", [])
+    steps_completed = current_module_status.get("steps_completed", [])
+    
+    if len(steps) > 0 and len(steps_completed) < len(steps):
+        remaining_steps = len(steps) - len(steps_completed)
+        messages.error(request, f"Vous devez d'abord compléter toutes les sous-étapes ({remaining_steps} restante{'s' if remaining_steps > 1 else ''}) avant de passer le quiz.")
+        return redirect("plan_integration_personnel")
 
     if request.method == "POST":
         # Corriger les réponses : question_id -> choice_id (choix sélectionné)
