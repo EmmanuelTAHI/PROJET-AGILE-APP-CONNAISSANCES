@@ -109,6 +109,29 @@
 
       <aside class="space-y-6">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900">Quiz de connaissances</h3>
+          <div class="mt-4">
+            {% if item.quiz %}
+                <div class="mb-3 text-sm text-slate-600">Un quiz est disponible pour cette connaissance.</div>
+                <a href="{% url 'quiz_take' item.quiz.id %}" class="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700">
+                    <i data-lucide="play-circle" class="h-4 w-4"></i>
+                    Commencer le Quiz
+                </a>
+            {% else %}
+                {% if frontend.role == "manager" or frontend.role == "admin" or item.author_user_id == user.id %}
+                    <div class="mb-3 text-sm text-slate-600">Aucun quiz associé. Vous pouvez en générer un automatiquement à partir du contenu.</div>
+                    <a href="{% url 'knowledge_generate_quiz' item.id %}" class="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-600 bg-white px-4 py-2.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-50">
+                        <i data-lucide="wand-2" class="h-4 w-4"></i>
+                        Générer un Quiz (Auto)
+                    </a>
+                {% else %}
+                    <p class="text-sm text-slate-500">Aucun quiz disponible pour le moment.</p>
+                {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 class="text-lg font-bold text-slate-900">Historique des versions</h3>
           <ul class="mt-4 space-y-2">
             {% for v in versions %}
